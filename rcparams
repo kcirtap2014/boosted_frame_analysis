@@ -1,0 +1,34 @@
+#Lines
+lines.linewidth   : 0.5
+lines.color       : grey
+
+#Patches
+patch.linewidth   : 0.5
+patch.facecolor   : grey
+
+#Font
+font.family        : serif
+font.serif         : Times, Palatino, New Century Schoolbook, Bookman, Computer Modern Roman
+font.sans-serif    : Helvetica, Avant Garde, Computer Modern Sans serif
+font.cursive       : Zapf Chancery
+font.monospace     : Courier, Computer Modern Typewriter
+font.size	   : 10.0
+
+#Text
+text.usetex       : False
+#Axes
+axes.linewidth    : 0.5
+axes.titlesize    : large
+axes.labelsize    : medium
+axes.formatter.use_mathtext : True
+
+#Ticks
+xtick.labelsize    : 12
+ytick.labelsize    : 12
+
+#Legend
+legend.fontsize    : 12
+
+#Figure
+figure.figsize     : 16, 9
+
