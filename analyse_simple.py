@@ -436,9 +436,10 @@ class Particles:
 	def filter(self,gamma_threshold=[],ROI=[]):	
 		if not gamma_threshold:
 			gamma_threshold.append(0.)
+			
 		if len(gamma_threshold)==1:
 			gamma_threshold.append(SENTINEL)
-			
+		
 		if self.gamma == 1 : 
 			z_beam = self.ts.get_particle(var_list=['z'], iteration=self.instant, species=self.species )[0]
 			z_beam =array(z_beam)*1.e-6
@@ -449,7 +450,7 @@ class Particles:
 			index=where((self.getgamma()>=gamma_threshold[0]) & (self.getgamma()<=gamma_threshold[1]) )
 			print "No filtering in z"
 		else:
-			index=where((((self.getgamma()>=gamma_threshold) & (self.getgamma()<=gamma_threshold[1])) & ((z_beam>=ROI[0]) & (z_beam<=ROI[1]))))
+			index=where((((self.getgamma()>=gamma_threshold[0]) & (self.getgamma()<=gamma_threshold[1])) & ((z_beam>=ROI[0]) & (z_beam<=ROI[1]))))
 		return index[0]	
 
 
@@ -700,12 +701,14 @@ def myPlot(g,res,frame=0):
 	limits(min(z),max(z),min(Ez),1.1*max(Ez))
 	ptitles("Ez-field","z(m)")
 	
-def beam_variables(F,P,gamma_threshold, bucket=False):
+def beam_variables(F,P,gamma_threshold=[], bucket=False):
 	if bucket:
 		buckets= F.bucket()
+		buckets = buckets[0]
 	else:	
 		buckets=[]
-	index=P.filter(gamma_threshold,buckets[0])
+	
+	index=P.filter(gamma_threshold,buckets)
 	x_beam  = P.getxbeam(index)
 	z_beam  = P.getzbeam(index)
 	w_beam  = P.getwbeam(index)
@@ -727,6 +730,33 @@ def tree(): return defaultdict(tree)
 def add(t, path):
   for node in path:
     t = t[node]
+    
+def myPlot():
+	plsys(3)
+	ppg(ux_beam/clight, x_beam)
+	ppg(ux_beam/clight, new_xbeam, color="red",msize=10)
+	ppg(ux_beam2/clight, x_beam2)
+	ppg(ux_beam2/clight, new_xbeam2, color="blue",msize=10)
+	ptitles("Collapsed","x[m]","ux[m]")
+
+	plsys(4)
+	ppg(uz_beam/clight, z_beam)
+	ppg(uz_beam/clight, new_zbeam, color="red",msize=10)
+	ppg(uz_beam2/clight, z_beam2)
+	ppg(uz_beam2/clight, new_zbeam2, color="blue",msize=10)
+	ptitles("Collapsed","z[m]","uz[m]")
+	
+	plsys(5)
+
+	ppg(ux_beam3/clight, x_beam3)
+	ppg(ux_beam3/clight, new_xbeam3, color="black",msize=10)
+	ptitles("Collapsed","x[m]","ux[m]")
+	
+	plsys(6)
+	ppg(uz_beam3/clight, z_beam3)
+	ppg(uz_beam3/clight, new_zbeam3, color="black",msize=10)
+	ptitles("Collapsed","z[m]","uz[m]")
+
     
 def dicts(t): return {k: dicts(t[k]) for k in t}    
 #Initialisation
@@ -810,7 +840,7 @@ P  = Particles(i,dsets, gammaBoost, timeSeries, ins_particle, species, filePrese
 
 #1st beam
 # -- calculating DESY quantities
-x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[50, 100./0.511],True)	
+x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[50, 50./0.511],True)	
 vx_beam = u2v(ux_beam,gamma_beam)
 vz_beam = u2v(uz_beam,gamma_beam)
 
@@ -825,7 +855,7 @@ new_emitx = emittance_calc(new_xbeam,ux_beam/clight,w_beam)
 beamStat = beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm)
 
 #2nd beam
-x_beam2, z_beam2, ux_beam2, uz_beam2, gamma_beam2, w_beam2, t_beam2 = beam_variables(F,P,[100./0.511],True)
+x_beam2, z_beam2, ux_beam2, uz_beam2, gamma_beam2, w_beam2, t_beam2 = beam_variables(F,P,[50./0.511],True)
 vx_beam2 = u2v(ux_beam2,gamma_beam2)
 vz_beam2 = u2v(uz_beam2,gamma_beam2)
 t0      = ave(t_beam2)
@@ -864,32 +894,7 @@ var_ux_jlv=(P.uxRMS_JLV()**2-P.xpbar_JLV()**2)
 cov_jlv = P.xxp_JLV()-P.xbar_JLV()*P.xpbar_JLV()
 
 
-def myPlot():
-	plsys(3)
-	ppg(ux_beam/clight, x_beam)
-	ppg(ux_beam/clight, new_xbeam, color="red",msize=10)
-	ppg(ux_beam2/clight, x_beam2)
-	ppg(ux_beam2/clight, new_xbeam2, color="blue",msize=10)
-	ptitles("Collapsed","x[m]","ux[m]")
-
-	plsys(4)
-	ppg(uz_beam/clight, z_beam)
-	ppg(uz_beam/clight, new_zbeam, color="red",msize=10)
-	ppg(uz_beam2/clight, z_beam2)
-	ppg(uz_beam2/clight, new_zbeam2, color="blue",msize=10)
-	ptitles("Collapsed","z[m]","uz[m]")
-	
-	plsys(5)
-
-	ppg(ux_beam3/clight, x_beam3)
-	ppg(ux_beam3/clight, new_xbeam3, color="black",msize=10)
-	ptitles("Collapsed","x[m]","ux[m]")
-	
-	plsys(6)
-	ppg(uz_beam3/clight, z_beam3)
-	ppg(uz_beam3/clight, new_zbeam3, color="black",msize=10)
-	ptitles("Collapsed","z[m]","uz[m]")
-
+myPlot()
 print "JLV",P.getemittance(),emittance_calc(x_beam,ux_beam/clight,w_beam),new_emitx
 
 
