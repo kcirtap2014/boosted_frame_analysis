@@ -36,7 +36,7 @@ file_variation = "external_injection_a0_2"
 file_variation = "external_injection_a0_2_small_beam"
 file_variation = "imposed_Ex"
 file_variation = "jlv_diag_test"
-file_variation = "lpa_changed_boosted"
+file_variation = "self_injection_100_particles_highest_Nx"
 snapshots=[0.2,0.5,1.0]
 l_snapshots = 0
 path = "/Volumes/WSIM4/boosted_frame/test_diag_edison/"
@@ -51,6 +51,12 @@ except OSError:
 
 gamma,nzplambda = getdatafromtextfile(path+'Analysis_Data/gamma_nzplambda_%s.txt' %(file_variation),dims=[2,None])
 z,emitX         = getdatafromtextfile(path+'Analysis_Data/emitX_%s.txt' %(file_variation),dims=[2,None])
+z,charge         = getdatafromtextfile(path+'Analysis_Data/charge_%s.txt' %(file_variation),dims=[2,None])
+z,charge_jlv         = getdatafromtextfile(path+'Analysis_Data/charge_jlv_%s.txt' %(file_variation),dims=[2,None])
+z,num_part     = getdatafromtextfile(path+'Analysis_Data/num_part_%s.txt' %(file_variation),dims=[2,None])
+
+z_all,charge_jlv_all      = getdatafromtextfile(path+'Analysis_Data/charge_jlv_all_%s.txt' %(file_variation),dims=[2,None])
+
 z,new_emitX         = getdatafromtextfile(path+'Analysis_Data/new_emitX_%s.txt' %(file_variation),dims=[2,None])
 
 zs,emitxs    = getdatafromtextfile(path+'Analysis_Data/emit_middle_point_%s.txt'%(file_variation),dims=[2,None])
@@ -99,6 +105,7 @@ z,avEn          = getdatafromtextfile(path+'Analysis_Data/avEn%s.txt'%(file_vari
 z_all,avEn_jlv_all = getdatafromtextfile(path+'Analysis_Data/avEn_jlv_all_%s.txt'%(file_variation),dims=[2,None])
 x_middle,ux_middle = getdatafromtextfile(path+'Analysis_Data/xsuxs_%s.txt'%(file_variation),dims=[2,None])
 os.chdir(path_beam)
+
 winon(0)
 plsys(3)
 plg(x_rms_jlv_all, z_all*1e6, color="green")
@@ -106,8 +113,8 @@ plg(x_rms,z,color='red')
 plp(x_rms, z, marker='\4',color="red")
 plg(x_rms_jlv, z, color="blue")
 plp(x_rms_jlv, z, marker='\2',color="blue")
-plg(new_x_rms,z,color="magenta")	
-plp(new_x_rms,z,color="magenta",marker='\4')	
+#plg(new_x_rms,z,color="magenta")	
+#plp(new_x_rms,z,color="magenta",marker='\4')	
 #plp(x_rms_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
 
 #
@@ -133,18 +140,30 @@ plg(emitX_jlv, z, color="blue")
 plp(emitX_jlv, z, marker='\2',color="blue")
 #plp(emitX_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
 #ppg(emitxs,zs*1e6,color=blue,msize=10)
-plg(new_emitX,z,color="magenta")	
-plp(new_emitX,z,color="magenta",marker='\4')	
+#plg(new_emitX,z,color="magenta")	
+#plp(new_emitX,z,color="magenta",marker='\4')	
 #plg(emitX_jlv_all, z_all*1e6, color="green")
 #
 ptitles("","z (um)","emitX")
 
 plsys(6)
-plg(x_bar_jlv_all, z_all*1e6, color="green")
-plg(w_x,z,color='red')	
-plp(w_x, z, marker='\4',color="red")
-plg(x_bar_jlv, z, color="blue")
-plp(x_bar_jlv, z, marker='\2',color="blue")
+plg(avEn, z, color='red')
+plp(avEn, z, marker='\4',color="red")
+plg(avEn_jlv, z, color="blue")
+plp(avEn_jlv, z, marker='\4',color="blue")
+plg(avEn_jlv_all, z_all*1e6, color="green")
+ptitles("avEn","z(m)","E(MeV)")
+#plp(ux_beam/clight,x_beam)	
+#ptitles("Uncollapsed")
+#plp(new_uxbeam/clight,new_xbeam,color="red")
+
+
+#ppco(ux_middle/clight,x_middle,z_beam)	
+#limits(min(z), max(z), 0.9*min(uz_beam_jlv),1.1*max(uz_beam_jlv))
+#limits(-10e-7,10e-7,-5,5)
+#ptitles("","x (m)","ux_beam")
+
+
 #plp(x_bar_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
 
 #plg(x_bar_jlv_all, z_all*1e6, color="green")
@@ -153,55 +172,60 @@ plp(x_bar_jlv, z, marker='\2',color="blue")
 #plg(avEn_jlv, z, color="blue")
 #plp(avEn_jlv, z, marker='\2',color="blue")
 #
-ptitles("","z (um)","xbar")
 
 pdf("evolution_case_gamma_%d_nzplambda_%d_a_20_beamstations" %(gamma,nzplambda))
 
-winon(1)
+if True:
+	winon(1)
 
-plsys(5)
-#plp(t_beam,z_beam)	
-#ptitles("","z (m)","t")
-#limits(-3e-6,3e-6,-4.5,4.5)
+	plsys(5)
+	#plp(t_beam,z_beam)	
+	#ptitles("","z (m)","t")
+	#limits(-3e-6,3e-6,-4.5,4.5)
+	plg(x_bar_jlv_all, z_all*1e6, color="green")
+	plg(w_x,z,color='red')	
+	plp(w_x, z, marker='\4',color="red")
+	plg(x_bar_jlv, z, color="blue")
+	plp(x_bar_jlv, z, marker='\2',color="blue")
+	ptitles("","z (um)","xbar")
+	
+	plsys(6)
+	plg(charge_jlv_all, z_all*1e6, color="green")
+	plg(num_part,z,color='red')	
+	plp(num_part, z, marker='\4',color="red")
+	plg(charge_jlv, z, color="blue")
+	plp(charge_jlv, z, marker='\2',color="blue")
+	ptitles("","z (um)","Num of Particles")
 
-plp(ux_middle/clight,x_middle)	
-#ppco(ux_middle/clight,x_middle,z_beam)	
-#limits(min(z), max(z), 0.9*min(uz_beam_jlv),1.1*max(uz_beam_jlv))
-limits(-10e-7,10e-7,-5,5)
-ptitles("","x (m)","ux_beam")
 
-plsys(3)
-plg(ux_bar_jlv_all, z_all*1e6, color="green")
-plg(w_ux,z,color='red')	
-plp(w_ux, z, marker='\4',color="red")
-plg(ux_bar_jlv, z, color="blue")
-plp(ux_bar_jlv, z, marker='\2',color="blue")
-#plp(ux_bar_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
+	plsys(3)
+	plg(ux_bar_jlv_all, z_all*1e6, color="green")
+	plg(w_ux,z,color='red')	
+	plp(w_ux, z, marker='\4',color="red")
+	plg(ux_bar_jlv, z, color="blue")
+	plp(ux_bar_jlv, z, marker='\2',color="blue")
+	#plp(ux_bar_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
 
-#limits(min(z), max(z), 0.9*min(ux_bar_jlv),1.1*max(ux_bar_jlv_all))
+	#limits(min(z), max(z), 0.9*min(ux_bar_jlv),1.1*max(ux_bar_jlv_all))
 
-ptitles("","z (um)","UX_bar")
-plsys(4)
-plg(xxp_jlv_all, z_all*1e6, color="green")
-#plg(e,z,color='red')	
-plg(xxp,z,color='red')	
-plp(xxp, z, marker='\4',color="red")
-plg(xxp_jlv, z, color="blue")
-plp(xxp_jlv, z, marker='\2',color="blue")
-#plp(xxp_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
+	ptitles("","z (um)","UX_bar")
+	plsys(4)
+	plg(xxp_jlv_all, z_all*1e6, color="green")
+	#plg(e,z,color='red')	
+	plg(xxp,z,color='red')	
+	plp(xxp, z, marker='\4',color="red")
+	plg(xxp_jlv, z, color="blue")
+	plp(xxp_jlv, z, marker='\2',color="blue")
+	#plp(xxp_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
+	
+	#
+	emit_mid = emittance_calc(x_middle,ux_middle/clight,ones(shape(x_middle)[0]))
+	emit_beam_jlv= emittance_calc(x_beam_jlv,ux_beam_jlv,ones(shape(x_beam_jlv)[0]))
+	emit_beam= emittance_calc(x_beam,ux_beam/clight,ones(shape(x_beam_jlv)[0]))
 
-#
-emit_mid = emittance_calc(x_middle,ux_middle/clight,ones(shape(x_middle)[0]))
-emit_beam_jlv= emittance_calc(x_beam_jlv,ux_beam_jlv,ones(shape(x_beam_jlv)[0]))
-emit_beam= emittance_calc(x_beam,ux_beam/clight,ones(shape(x_beam_jlv)[0]))
+	print emit_mid, emit_beam_jlv, emit_beam
+	ptitles("","z (um)","XXP")
 
-print emit_mid, emit_beam_jlv, emit_beam
-ptitles("","z (um)","XXP")
-
-plsys(6)
-plp(new_uxbeam/clight,new_xbeam)
-limits(-10e-7,10e-7,-5,5)
-
-#ptitles("","z (m)","emitX")
-pdf("evolution_case_gamma_%d_nzplambda_%d_b_20_beamstations" %(gamma,nzplambda))
+	#ptitles("","z (m)","emitX")
+	pdf("evolution_case_gamma_%d_nzplambda_%d_b_20_beamstations" %(gamma,nzplambda))
 

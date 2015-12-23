@@ -181,6 +181,12 @@ class Particles:
 			self.ekstations = tmp.ekstations
 			self.xbarstations =tmp.xbarstations
 			self.xpbarstations = tmp.xpbarstations
+			self.pnumstations = tmp.pnumstations
+			self.nx 		= tmp.nx
+			self.ny 		= tmp.ny
+			self.nz 		= tmp.nz
+			self.stencil= tmp.stencil
+			self.dim		= tmp.dim
 			try:
 				self.xxpstations   = tmp.xxpstations
 				self.xs   = tmp.xs
@@ -228,16 +234,20 @@ class Particles:
 		return z_beam
 	
 	def gettbeam(self,index):
-		t_beam = self.dsets[self.filenum]['t'][0][:]
-		try:
-				t_beam=take(t_beam,index)
-		except IndexIsEmpty:	
-				t_beam=[]
-				print "No particle above the gamma threshold is detected."	
+		if not self.gamma == 1 :
+			t_beam = self.dsets[self.filenum]['t'][0][:]
+			try:
+					t_beam=take(t_beam,index)
+			except IndexIsEmpty:	
+					t_beam=[]
+					print "No particle above the gamma threshold is detected."	
+		else:
+			t_beam =0.0
 		return t_beam
 	
 	def getgamma(self):
 		if self.gamma ==1 :
+			#print self.getuzbeam()
 			gamma_beam = sqrt(1.+(self.getuxbeam()**2+self.getuybeam()**2+self.getuzbeam()**2)/clight**2)	
 		else:
 			gamma_beam = self.dsets[self.filenum]['gamma'][0][:]
@@ -266,6 +276,7 @@ class Particles:
 	def getuxbeam(self):
 		if self.gamma == 1 : 
 			ux_beam = self.ts.get_particle(var_list=['ux'], iteration=self.instant, species=self.species )[0]
+			ux_beam*=clight
 		else:
 			ux_beam = self.dsets[self.filenum]['vx'][0][:]*self.dsets[self.filenum]['gamma'][0][:]
 		return ux_beam
@@ -273,6 +284,7 @@ class Particles:
 	def getuybeam(self):
 		if self.gamma == 1 : 
 			uy_beam = self.ts.get_particle(var_list=['uy'], iteration=self.instant, species=self.species )[0]
+			uy_beam*=clight
 
 		else:
 			uy_beam = self.dsets[self.filenum]['vy'][0][:]*self.dsets[self.filenum]['gamma'][0][:]
@@ -281,6 +293,7 @@ class Particles:
 	def getuzbeam(self):
 		if self.gamma == 1 : 
 			uz_beam = self.ts.get_particle(var_list=['uz'], iteration=self.instant, species=self.species )[0]
+			uz_beam*=clight
 		else:
 			uz_beam = self.dsets[self.filenum]['vz'][0][:]*self.dsets[self.filenum]['gamma'][0][:]
 		return uz_beam
@@ -363,6 +376,18 @@ class Particles:
 	
 	def xbeam_JLV(self):
 		return self.xs
+	
+	def charge_JLV(self):
+		if self.l_ebeam:
+			ii=where(self.beamzstations<=Lplasma_lab)
+			#print self.beamzstations[ii[0]][-1], self.beamzstations[ii[0]]
+			try: 
+				charge= 	self.pnumstations[ii[0][-1]]
+			except IndexError:
+				charge = self.pnumstations[-1]			
+		else:
+			charge=0.0
+		return charge
 		
 	def ybeam_JLV(self):
 		return self.ys
@@ -551,10 +576,10 @@ def gamma2energy(gamma_beam):
 		energy=0
 	return energy
 
-def beam_charge(z_beam,w_beam):
+def beam_charge(z_beam,w_beam,dx,dz):
 		"""calculate the charge in the ROI (region of interest)"""
 		try:
-			charge=sum(w_beam)*echarge*10**12
+			charge=sum(w_beam)*echarge*1e6
 			#ave_charge=average(charge)
 		except TypeError:
 			charge=0.
@@ -574,7 +599,7 @@ def beam_numParticles(z_beam):
 def beam_energy(gamma_beam,z_beam,w_beam,l_fwhm):
 	energy = gamma2energy(gamma_beam)
 	try:
-			n_energy,energy = histogram(energy,bins=80,weights=w_beam)
+			n_energy,energy = histogram(energy,bins=100,weights=w_beam)
 	 		n_energy*=echarge*10**6  ##for MeV
 	 		energy=delete(energy,0)
 	except TypeError:
@@ -608,16 +633,16 @@ def emittance_calc(x,ux,w):
   
   	w_x=average(x)
   	w_ux=average(ux)
-  
   	ii=where(w!=0.)
   	nz_w=take(w,ii[0])
   	xux=sum(x*ux)/len(x)
   	variance_x=var(x)
   	variance_ux=var(ux)
   	covariance_xux=xux-w_x*w_ux
-  
   	xuxw=[[variance_x,covariance_xux],[covariance_xux,variance_ux]]
   	emittance_w=sqrt(linalg.det(xuxw))
+  	if math.isnan(emittance_w):
+  		emittance_w=0.0
   	#print "PL",variance_x,variance_ux,covariance_xux,emittance_w
   	
 		#variance_x=sum(w*(x-w_x)**2)/((len(nz_w)-1)*sum(w)/len(nz_w))
@@ -643,8 +668,10 @@ def bilinear_interpolation(v1,v2,z1,z2,e_rms):
   return z_new
 
 def get_rms(variable):
-	
-	return std(variable)
+	rms=std(variable)
+	if math.isnan(rms):
+		rms=0
+	return rms
 	
 def delta_EsE(z_spectre,spectre,l_fwhm):
   #dist=ones(len(spectre))*(z_spectre[1]-z_spectre[0])
@@ -722,7 +749,7 @@ file_name=[]
 l_write=1
 l_fwhm = 1
 l_DESY =0
-Lplasma_lab_all=200e-6
+Lplasma_lab_all=500e-6
 corr_data_instant=9
 lambda_laser = 0.8e-6
 freq_frame = 200
@@ -739,7 +766,7 @@ except OSError:
 
 #default values
 
-gammaBoost=[10]
+gammaBoost=[5,10]
 
 #resolution=[16,24,32,40,48]
 #gammaBoost=[1,2,5,10]
@@ -748,7 +775,7 @@ num_folders_gamma = len(gammaBoost)
 file_analysis  = path+"/analysis_res.txt"
 #file_variation = "test_trans_emit"  #"external_injection_a0_2"
 #file_variation = "external_injection_a0_2_small_beam"
-file_variation = "lpa_changed_boosted"
+file_variation = "self_injection_100_particles_highest_Nx"
 fileselection = range(1, 11)
 a_fileselection = [range(1,6), range(1,11), range(1,21)]
 file_json = path+ "json/analysis_%s.json" %file_variation
@@ -761,9 +788,9 @@ AnalyseDifferentGammas=0
 CheckingEmittance			=1
 
 if AnalyseDifferentGammas:
-	latency=8e-6
-	Lplasma_lab=Lplasma_lab_all-latency
-	
+	latency=0
+	Lplasma_lab=(corr_data_instant+1)*Lplasma_lab_all/len(fileselection)-latency
+	print Lplasma_lab
 	for i in range(0, num_folders_gamma):
 		dsets = None
 		timeSeries=None
@@ -773,7 +800,7 @@ if AnalyseDifferentGammas:
 			#resolution = [16]
 			num_folders_res = len(resolution)
 		else:
-			resolution=[16,24,32,40,48,64]
+			resolution=[16,24,32,40,48]#,64]
 			#resolution=[16]
 			num_folders_res = len(resolution)
 
@@ -787,35 +814,31 @@ if AnalyseDifferentGammas:
 			if gammaBoost[i]==1:
 				timeSeries =OpenPMDTimeSeries('%sdiags/hdf5/' %folder)
 				print "You are processing %sdiags/hdf5/" %folder
-				instant = int(1*Lplasma_lab*resolution[j]/(lambda_laser*freq_frame))
+				instant = int(Lplasma_lab*resolution[j]/(lambda_laser*freq_frame))
 			else:
 				subfolder = "%sdata" %folder
 				data = wp.Data(runid = runid, subfolder = subfolder, fileselection = fileselection, datadict=datadict)
 				files = data.readFiles()
 				dsets = data.readDatasets()
-			species = 'beam'
+			species = 'electrons'
 			ins_particle = (instant+1)*freq_frame	
+			#print instant, ins_particle
 			F  = Fields(corr_data_instant, dsets, gammaBoost[i], timeSeries, instant )
 			P  = Particles(corr_data_instant,dsets, gammaBoost[i], timeSeries, ins_particle, species, filePresent, file_ebeam )
 			Ez = F.field_on_axis_Ez()
 			Ey = F.field_on_axis_Ey()
 			x  = F.xValues()
 			z  = F.zValues()
-			#print z
-		
-			#winon() 
-			#plg(Ez,z)
-			#winon(1) 
-			#plg(Ey,z)
+			dz = abs(z[1]-z[0])
+			dx = abs(x[1]-z[0])
 			buckets= F.bucket()
-			#print buckets
-			#ROI=[buckets[0][0],buckets[0][1]]
-	
-			gamma_threshold = 50  ##have to be in agreement with the input script
+			Energy_threshold  = 50  ##Energy in MeV
+			gamma_threshold = Energy_threshold/0.511  ##have to be in agreement with the input script #Defining the filtered indices
 	
 			#Defining the filtered indices
 			index = []
-			index=P.filter(gamma_threshold)
+			
+			index=P.filter(gamma_threshold, buckets[0])
 			#Filtered quantities
 			x_beam  = P.getxbeam(index)
 			z_beam  = P.getzbeam(index)
@@ -824,6 +847,8 @@ if AnalyseDifferentGammas:
 			ux_beam = P.getfiltereduxbeam(index)
 			uz_beam = P.getfiltereduzbeam(index)
 			gamma_beam = P.getfilteredgamma(index)
+			vx_beam = ux_beam/gamma_beam
+			vz_beam = uz_beam/gamma_beam
 			en = gamma2energy(gamma_beam)
 			n_energy,energy = beam_energy(gamma_beam,z_beam,w_beam,l_fwhm)
 
@@ -835,10 +860,19 @@ if AnalyseDifferentGammas:
 			x_rms_jlv = P.xRMS_JLV()
 			ux_rms_jlv = P.uxRMS_JLV()
 			avEnergy_jlv =P.avEnergy_JLV()
+			charge_jlv = P.charge_JLV()
 			z_rms=get_rms(z_beam)
-			ux_rms=get_rms(ux_beam)
-			uz_rms=get_rms(uz_beam)
+			ux_rms=get_rms(ux_beam/clight)
+			uz_rms=get_rms(uz_beam/clight)
 			beamStat = beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm)
+			#Collapsing to the average time
+			t_beam  = P.gettbeam(index)
+			
+			t0      = ave(t_beam)
+			dt  = t0-t_beam
+			new_x_beam=centralize(x_beam,vx_beam,dt)
+			new_z_beam=centralize(z_beam,vz_beam,dt)
+			new_xrms = get_rms(new_x_beam)
 		
 			if l_DESY:
 				emitX_desy=P.getemittance('x')
@@ -847,10 +881,11 @@ if AnalyseDifferentGammas:
 				emitX_desy=0.0
 				emitZ_desy=0.0
 			
-			emitX = emittance_calc(x_beam,ux_beam,w_beam)
-			emitZ = emittance_calc(z_beam,uz_beam,w_beam)
+			emitX = emittance_calc(x_beam,ux_beam/clight,w_beam)
+			new_emitX = emittance_calc(new_x_beam,ux_beam/clight,w_beam)
+			emitZ = emittance_calc(z_beam,uz_beam/clight,w_beam)
 			emitX_jlv = P.getemittance()
-			charge = beam_charge(z_beam,w_beam)
+			charge = beam_charge(z_beam,w_beam,dx,dz)
 			numPart = beam_numParticles(z_beam)
 		
 			#read runtime
@@ -879,12 +914,15 @@ if AnalyseDifferentGammas:
 		
 			analysis[gammaBoost[i]][resolution[j]]['charge']=charge
 			analysis[gammaBoost[i]][resolution[j]]['x_rms']=float(x_rms)*1e6
+			analysis[gammaBoost[i]][resolution[j]]['new_xrms']=float(new_xrms)*1e6
 			analysis[gammaBoost[i]][resolution[j]]['z_rms']=float(z_rms)*1e6  #rms values in um
 			analysis[gammaBoost[i]][resolution[j]]['x_rms_jlv']=float(x_rms_jlv)*1e6
 			analysis[gammaBoost[i]][resolution[j]]['ux_rms']=float(ux_rms)
 			analysis[gammaBoost[i]][resolution[j]]['uz_rms']=float(uz_rms)
 			analysis[gammaBoost[i]][resolution[j]]['ux_rms_jlv']=float(ux_rms_jlv)
+			analysis[gammaBoost[i]][resolution[j]]['charge_jlv']=float(charge_jlv)
 			analysis[gammaBoost[i]][resolution[j]]['emitX']=emitX*1e6  #emittances in mm.mrad
+			analysis[gammaBoost[i]][resolution[j]]['new_emitX']=new_emitX*1e6  #emittances in mm.mrad
 			analysis[gammaBoost[i]][resolution[j]]['emitZ']=emitZ*1e6
 			analysis[gammaBoost[i]][resolution[j]]['emitX_desy']=emitX_desy  #emittances in mm.mrad
 			analysis[gammaBoost[i]][resolution[j]]['emitZ_desy']=emitZ_desy
@@ -911,13 +949,16 @@ if AnalyseDifferentGammas:
 					for j,jres in enumerate(resolution):
 						resTree[i].append({"resolution":jres,
 															"charge":analysis[gammaBoost[i]][resolution[j]]['charge'],
+															"charge_jlv":analysis[gammaBoost[i]][resolution[j]]['charge_jlv'],
 															"x_rms":analysis[gammaBoost[i]][resolution[j]]['x_rms'],
+															"new_xrms":analysis[gammaBoost[i]][resolution[j]]['xrms'],
 															"x_rms_jlv":analysis[gammaBoost[i]][resolution[j]]['x_rms_jlv'],
 															"z_rms":analysis[gammaBoost[i]][resolution[j]]['z_rms'],
 															"ux_rms":analysis[gammaBoost[i]][resolution[j]]['ux_rms'],
 															"uz_rms":analysis[gammaBoost[i]][resolution[j]]['uz_rms'],
 															"ux_rms_jlv":analysis[gammaBoost[i]][resolution[j]]['ux_rms_jlv'],
 															"emitX":analysis[gammaBoost[i]][resolution[j]]['emitX'],
+															"new_emitX":analysis[gammaBoost[i]][resolution[j]]['new_emitX'],
 															"emitZ":analysis[gammaBoost[i]][resolution[j]]['emitZ'],
 															"emitX_desy":analysis[gammaBoost[i]][resolution[j]]['emitX_desy'],
 															"emitZ_desy":analysis[gammaBoost[i]][resolution[j]]['emitZ_desy'],
@@ -938,18 +979,19 @@ if CheckingEmittance:
 		timeSeries=None
 		instant = 0
 		ins_particle   = 0
-		gammaBoost = 10
+		gammaBoost = 5
 		resolution=16
 		subtext = ""
 		folder=path+"gamma_test/gamma%d_%s/gamma%d_nzplambda%d%s/" %(gammaBoost,file_variation, gammaBoost,resolution,subtext)
-		species = 'beam'
+		species = 'electrons'
 		file_ebeam = folder+"ebeamstations.pdb"
 		filePresent= os.path.isfile(file_ebeam)
 		if not filePresent:
 			file_ebeam=None
 		
-		gamma_threshold = 50  ##have to be in agreement with the input script #Defining the filtered indices
-		
+		Energy_threshold  = 50  ##Energy in MeV
+		gamma_threshold = Energy_threshold/0.511  ##have to be in agreement with the input script #Defining the filtered indices
+		#print gamma_threshold
 		index = []
 		x_rms=[]
 		ux_rms=[]
@@ -963,7 +1005,7 @@ if CheckingEmittance:
 		ux_bar_jlv=[]
 		xxp_jlv=[]
 		xxp=[]
-
+		charge_jlv=[]
 		emitX=[]
 		emitZ=[]
 		emitX_jlv=[]
@@ -975,16 +1017,19 @@ if CheckingEmittance:
 		new_emitX=[]
 		latency=0e-6
 		l_fwhm=1
+		charge=[]
+		num_part=[]
 		
 		count =0
 		for i in range (0,len(fileselection)):
+			Lplasma_lab=(i+1)*Lplasma_lab_all/len(fileselection)-latency
 			if gammaBoost==1:
 				timeSeries =OpenPMDTimeSeries('%sdiags/hdf5/' %folder)
 				print "You are processing %sdiags/hdf5/" %folder
-				instant=(i+1)*int(1*Lplasma_lab_all*resolution/(lambda_laser*freq_frame))/len(fileselection)
-				print instant
+				instant=int(1*Lplasma_lab*resolution/(lambda_laser*freq_frame))
 				F  = Fields(fileselection, dsets, gammaBoost, timeSeries, instant)
-				ins_particle   = (instant)*freq_frame	
+				ins_particle   = (instant+1)*freq_frame	
+
 				P  = Particles(fileselection,dsets, gammaBoost, timeSeries, ins_particle, species, filePresent, file_ebeam )
 			else:
 				subfolder = "%sdata" %folder
@@ -994,24 +1039,31 @@ if CheckingEmittance:
 				
 				F  = Fields(i, dsets, gammaBoost, timeSeries, instant)
 				P  = Particles(i,dsets, gammaBoost, timeSeries, ins_particle, species, filePresent, file_ebeam )
-			Lplasma_lab=(i+1)*Lplasma_lab_all/len(fileselection)-latency
+			
 			#print "Lplasma",Lplasma_lab
-			index=P.filter(gamma_threshold)
+			bucket= F.bucket()
+			index=P.filter(gamma_threshold,bucket[0])
 			#Filtered quantities
 			x_beam  = P.getxbeam(index)
 			z_beam  = P.getzbeam(index)
 			w_beam  = P.getwbeam(index)
+			
 			t_beam  = P.gettbeam(index)
+			z				= F.zValues()
+			x 			= F.xValues()
+			dz			= z[1]-z[0]
+			dx			= x[1]-x[0]
+		
+			charge.append(beam_charge(z_beam,w_beam,dx,dz))
 			
 			x_beam_jlv = P.xbeam_JLV()
 			y_beam_jlv = P.ybeam_JLV()
 			z_beam_jlv = P.zbeam_JLV()
 			ux_beam_jlv = P.uxbeam_JLV()
 			
-	
 			print Lplasma_lab
-			print "**x_beam**",x_beam_jlv
-			print "**ux_beam**",ux_beam_jlv
+			#print "**x_beam**",x_beam_jlv
+			#print "**ux_beam**",ux_beam_jlv
 			uy_beam_jlv = P.uybeam_JLV()
 			uz_beam_jlv = P.uzbeam_JLV()
 			w_beam_jlv  = P.wbeam_JLV()
@@ -1029,29 +1081,35 @@ if CheckingEmittance:
 			vz_beam = u2v(uz_beam,gamma_beam)
 			en = gamma2energy(gamma_beam)
 			
+			
 			#Collapsing to the average time
 			t_beam  = P.gettbeam(index)
 			
 			t0      = ave(t_beam)
 			dt  = t0-t_beam
-			print "**old_xbeam**",x_beam
+			#print "**old_xbeam**",x_beam
 			new_x_beam=centralize(x_beam,vx_beam,dt)
-			
-			if Lplasma_lab == 1.e-4:
-				print Lplasma_lab,i
-				new_xbeam_save= new_x_beam
-				ux_beam_save=ux_beam
-			print '**dt**',dt
-			print "**t_beam**",t_beam
-			print "**vz_beam**", vz_beam
-			print "**new_xbeam**",x_beam
+			new_z_beam=centralize(z_beam,vz_beam,dt)
+			new_xbeam_save= new_x_beam
+			ux_beam_save=ux_beam
+			#print '**dt**',dt
+			#print "**t_beam**",t_beam
+			#print "**vz_beam**", vz_beam
+			#print "**new_xbeam**",x_beam
 			
 			#myPlot(gammaBoost,resolution,frame=count)
 		
 			#x_beam  = centralize(x_beam, vx_beam, (Lplasma_lab-z_beam)/vz_beam)
-			w_x.append(average(x_beam,weights=w_beam))
-			w_ux.append(average(ux_beam/clight,weights=w_beam))
-			xxp.append(sum(x_beam*ux_beam/clight)/len(x_beam))
+			try:
+				w_x.append(average(x_beam,weights=w_beam))
+				w_ux.append(average(ux_beam/clight,weights=w_beam))
+			except ZeroDivisionError:
+				w_x.append(0.0)
+				w_ux.append(0.0)
+			xxpp = sum(x_beam*ux_beam/clight)/len(x_beam)
+			if math.isnan(xxpp):
+				xxpp=0.0
+			xxp.append(xxpp)
 			beamStat = beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm)
 			new_x_rms.append(get_rms(new_x_beam))
 			x_rms.append(get_rms(x_beam))
@@ -1060,7 +1118,8 @@ if CheckingEmittance:
 			ux_rms_jlv.append(P.uxRMS_JLV())
 			x_bar_jlv.append(P.xbar_JLV())
 			ux_bar_jlv.append(P.xpbar_JLV())
-		
+			charge_jlv.append(P.charge_JLV())
+			num_part.append(len(z_beam))
 			var_x_jlv=(P.xRMS_JLV()**2-P.xbar_JLV()**2)
 			var_ux_jlv=(P.uxRMS_JLV()**2-P.xpbar_JLV()**2)
 			cov_jlv = P.xxp_JLV()-P.xbar_JLV()*P.xpbar_JLV()
@@ -1084,6 +1143,10 @@ if CheckingEmittance:
 		write(z_sampled,new_x_rms,"%snew_x_rms_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,w_x,"%sw_x_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,x_rms_jlv,"%sx_rms_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
+		write(z_sampled,charge_jlv,"%scharge_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
+		write(z_sampled,charge,"%scharge_%s%s.txt" %(path_analysis,file_variation,subtext))
+		write(z_sampled,num_part,"%snum_part_%s%s.txt" %(path_analysis,file_variation,subtext))
+		write(P.beamzstations,P.pnumstations,"%scharge_jlv_all_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,x_bar_jlv,"%sx_bar_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(P.beamzstations,P.xrmsstations,"%sx_rms_jlv_all_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,ux_rms,"%sux_rms_%s%s.txt" %(path_analysis,file_variation,subtext))

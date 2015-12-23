@@ -721,8 +721,8 @@ file_name=[]
 l_write=1
 l_fwhm = 1
 l_DESY =0
-Lplasma_lab_all=200e-6
-corr_data_instant=4
+Lplasma_lab_all=500e-6
+corr_data_instant=9
 lambda_laser = 0.8e-6
 freq_frame = 200
 
@@ -743,7 +743,7 @@ analysis = tree()
 num_folders_gamma = len(gammaBoost)
 file_analysis  = path+"/analysis_res.txt"
 
-file_variation = "lpa"
+file_variation = "self_injection_100_particles_highest_Nx"
 fileselection = range(1, 11)
 a_fileselection = [range(1,6), range(1,11), range(1,21)]
 file_json = path+ "json/analysis_%s.json" %file_variation
@@ -756,8 +756,8 @@ dsets = None
 timeSeries=None
 instant = 0
 ins_particle   = 0
-gammaBoost = 10
-resolution=16
+gammaBoost = 5
+resolution=32
 subtext = ""
 folder=path+"gamma_test/gamma%d_%s/gamma%d_nzplambda%d%s/" %(gammaBoost,file_variation, gammaBoost,resolution,subtext)
 species = 'beam'
@@ -767,7 +767,8 @@ filePresent= os.path.isfile(file_ebeam)
 if not filePresent:
 	file_ebeam=None
 
-gamma_threshold = 50  ##have to be in agreement with the input script #Defining the filtered indices
+Energy_threshold = 50
+gamma_threshold = Energy_threshold/0.511  ##have to be in agreement with the input script #Defining the filtered indices
 
 index = []
 x_rms=[]
@@ -805,11 +806,12 @@ data = wp.Data(runid = runid, subfolder = subfolder, fileselection = fileselecti
 files = data.readFiles()
 dsets = data.readDatasets()
 
-#F  = Fields(0, dsets, gammaBoost, timeSeries, instant)
+F  = Fields(i, dsets, gammaBoost, timeSeries, instant)
 P  = Particles(i,dsets, gammaBoost, timeSeries, ins_particle, species, filePresent, file_ebeam )
+buckets= F.bucket()
 
 #print "Lplasma",Lplasma_lab
-index=P.filter(gamma_threshold)
+index=P.filter(gamma_threshold,buckets[0])
 #Filtered quantities
 x_beam  = P.getxbeam(index)
 z_beam  = P.getzbeam(index)
@@ -842,7 +844,7 @@ t_beam  = P.gettbeam(index)
 
 t0      = ave(t_beam)
 dt  		= t0-t_beam
-new_tbeam = centralize(t_beam,vz_beam, dt)
+new_tbeam = t_beam+dt
 new_zbeam = centralize(z_beam,vz_beam,dt)
 new_xbeam = centralize(x_beam,vx_beam,dt)
 
@@ -852,15 +854,20 @@ print "**vz_beam**", vz_beam
 print "**new_zbeam**",new_zbeam
 
 #plg(z_beam)
-plsys(3)
-ppco(ux_beam/clight, x_beam, t_beam)
-palette("earth.gp")
-ptitles("Uncollapsed")
+#plsys(3)
+#ppco(ux_beam/clight, x_beam, t_beam)
+#palette("earth.gp")
+#ptitles("Uncollapsed")
 
-plsys(4)
+plsys(9)
 ppg(ux_beam/clight, x_beam)
-ppg(ux_beam/clight, new_xbeam, color="red")
-ptitles("Collapsed")
+ppg(ux_beam/clight, new_xbeam, color="red",msize=10)
+ptitles("Collapsed","x[m]","ux[m]")
+
+plsys(10)
+ppg(uz_beam/clight, z_beam)
+ppg(uz_beam/clight, new_zbeam, color="red",msize=10)
+ptitles("Collapsed","x[m]","ux[m]")
 
 new_emitx = emittance_calc(new_xbeam,ux_beam/clight,w_beam)
 #myPlot(gammaBoost,resolution,frame=count)
