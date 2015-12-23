@@ -3,7 +3,7 @@ from warp import *
 from collections import defaultdict
 from json import dumps,load
 import warpplot_jlv as wp
-
+SENTINEL  = float("inf")
 ###Exceptions###
 def IndexIsEmpty(Exception):
 	if not index:
@@ -433,7 +433,12 @@ class Particles:
 		return avEnergy*1e-6
 		
 		
-	def filter(self,gamma_threshold,ROI=[]):	
+	def filter(self,gamma_threshold=[],ROI=[]):	
+		if not gamma_threshold:
+			gamma_threshold.append(0.)
+		if len(gamma_threshold)==1:
+			gamma_threshold.append(SENTINEL)
+			
 		if self.gamma == 1 : 
 			z_beam = self.ts.get_particle(var_list=['z'], iteration=self.instant, species=self.species )[0]
 			z_beam =array(z_beam)*1.e-6
@@ -441,10 +446,10 @@ class Particles:
 		else:
 			z_beam = self.dsets[self.filenum]['z'][0][:]
 		if not ROI:
-			index=where(self.getgamma()>=gamma_threshold)
+			index=where((self.getgamma()>=gamma_threshold[0]) & (self.getgamma()<=gamma_threshold[1]) )
 			print "No filtering in z"
 		else:
-			index=where(((self.getgamma()>=gamma_threshold) & ((z_beam>=ROI[0]) & (z_beam<=ROI[1]))))
+			index=where((((self.getgamma()>=gamma_threshold) & (self.getgamma()<=gamma_threshold[1])) & ((z_beam>=ROI[0]) & (z_beam<=ROI[1]))))
 		return index[0]	
 
 
@@ -694,7 +699,23 @@ def myPlot(g,res,frame=0):
 	plg(Ez,z)
 	limits(min(z),max(z),min(Ez),1.1*max(Ez))
 	ptitles("Ez-field","z(m)")
-
+	
+def beam_variables(F,P,gamma_threshold, bucket=False):
+	if bucket:
+		buckets= F.bucket()
+	else:	
+		buckets=[]
+	index=P.filter(gamma_threshold,buckets[0])
+	x_beam  = P.getxbeam(index)
+	z_beam  = P.getzbeam(index)
+	w_beam  = P.getwbeam(index)
+	gamma_beam = P.getfilteredgamma(index)
+	ux_beam = P.getfiltereduxbeam(index)
+	uz_beam = P.getfiltereduzbeam(index)
+	t_beam  = P.gettbeam(index)
+	
+	return x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam
+	
 def u2v(u,gamma):
 	return u/gamma
 
@@ -768,37 +789,15 @@ if not filePresent:
 	file_ebeam=None
 
 Energy_threshold = 50
-gamma_threshold = Energy_threshold/0.511  ##have to be in agreement with the input script #Defining the filtered indices
+gamma_threshold = [Energy_threshold/0.511,]  ##have to be in agreement with the input script #Defining the filtered indices
 
-index = []
-x_rms=[]
-ux_rms=[]
-w_x=[]
-w_ux=[]
-x_rms_jlv=[]
-ux_rms_jlv=[]
-z_rms=[]
-uz_rms=[]
-x_bar_jlv=[]
-ux_bar_jlv=[]
-xxp_jlv=[]
-xxp=[]
-
-emitX=[]
-emitZ=[]
-emitX_jlv=[]
-emitX_jlv2=[]
-z_sampled=[]
-avEn_jlv= []
-avEn= []
 latency=0e-6
 l_fwhm=1
 
 count =0
 
-
 i = input('Choose the file number: ')
-print len(fileselection)
+
 Lplasma_lab=(i+1)*Lplasma_lab_all/len(fileselection)-latency
 print "You have chosen file %d, corresponding to Lplasma= %g" %(i, Lplasma_lab)
 subfolder = "%sdata" %folder
@@ -808,98 +807,89 @@ dsets = data.readDatasets()
 
 F  = Fields(i, dsets, gammaBoost, timeSeries, instant)
 P  = Particles(i,dsets, gammaBoost, timeSeries, ins_particle, species, filePresent, file_ebeam )
-buckets= F.bucket()
 
-#print "Lplasma",Lplasma_lab
-index=P.filter(gamma_threshold,buckets[0])
-#Filtered quantities
-x_beam  = P.getxbeam(index)
-z_beam  = P.getzbeam(index)
-w_beam  = P.getwbeam(index)
-#t_beam  = P.gettbeam(index)
-x_beam_jlv = P.xbeam_JLV()
-y_beam_jlv = P.ybeam_JLV()
-z_beam_jlv = P.zbeam_JLV()
-ux_beam_jlv = P.uxbeam_JLV()
-
-
-print Lplasma_lab
-print "**x_beam**",x_beam_jlv
-print "**ux_beam**",ux_beam_jlv
-uy_beam_jlv = P.uybeam_JLV()
-uz_beam_jlv = P.uzbeam_JLV()
-w_beam_jlv  = P.wbeam_JLV()
-emit_jlv_calc  = emittance_calc(x_beam_jlv,ux_beam_jlv,w_beam_jlv)
-
-
-gamma_beam = P.getfilteredgamma(index)
-ux_beam = P.getfiltereduxbeam(index)
-uz_beam = P.getfiltereduzbeam(index)
+#1st beam
+# -- calculating DESY quantities
+x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[50, 100./0.511],True)	
 vx_beam = u2v(ux_beam,gamma_beam)
 vz_beam = u2v(uz_beam,gamma_beam)
-en = gamma2energy(gamma_beam)
 
 #Collapsing to the average time
-t_beam  = P.gettbeam(index)
-
 t0      = ave(t_beam)
 dt  		= t0-t_beam
 new_tbeam = t_beam+dt
 new_zbeam = centralize(z_beam,vz_beam,dt)
 new_xbeam = centralize(x_beam,vx_beam,dt)
-
-print '**new_tbeam**',new_tbeam
-print "**t_beam**",t_beam
-print "**vz_beam**", vz_beam
-print "**new_zbeam**",new_zbeam
-
-#plg(z_beam)
-#plsys(3)
-#ppco(ux_beam/clight, x_beam, t_beam)
-#palette("earth.gp")
-#ptitles("Uncollapsed")
-
-plsys(9)
-ppg(ux_beam/clight, x_beam)
-ppg(ux_beam/clight, new_xbeam, color="red",msize=10)
-ptitles("Collapsed","x[m]","ux[m]")
-
-plsys(10)
-ppg(uz_beam/clight, z_beam)
-ppg(uz_beam/clight, new_zbeam, color="red",msize=10)
-ptitles("Collapsed","x[m]","ux[m]")
-
+en = gamma2energy(gamma_beam)
 new_emitx = emittance_calc(new_xbeam,ux_beam/clight,w_beam)
-#myPlot(gammaBoost,resolution,frame=count)
-
-#x_beam  = centralize(x_beam, vx_beam, (Lplasma_lab-z_beam)/vz_beam)
-
-w_x.append(average(x_beam,weights=w_beam))
-w_ux.append(average(ux_beam,weights=w_beam))
-xxp.append(sum(x_beam*ux_beam)/len(x_beam))
 beamStat = beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm)
-x_rms.append(get_rms(x_beam))
-x_rms_jlv.append(P.xRMS_JLV())
-xxp_jlv.append(P.xxp_JLV())
-ux_rms_jlv.append(P.uxRMS_JLV())
-x_bar_jlv.append(P.xbar_JLV())
-ux_bar_jlv.append(P.xpbar_JLV())
 
+#2nd beam
+x_beam2, z_beam2, ux_beam2, uz_beam2, gamma_beam2, w_beam2, t_beam2 = beam_variables(F,P,[100./0.511],True)
+vx_beam2 = u2v(ux_beam2,gamma_beam2)
+vz_beam2 = u2v(uz_beam2,gamma_beam2)
+t0      = ave(t_beam2)
+dt  		= t0-t_beam2
+new_tbeam2 = t_beam2+dt
+new_zbeam2 = centralize(z_beam2,vz_beam2,dt)
+new_xbeam2 = centralize(x_beam2,vx_beam2,dt)
+en2 = gamma2energy(gamma_beam2)
+new_emitx2 = emittance_calc(new_xbeam2,ux_beam2/clight,w_beam2)
+beamStat2 = beam_statistics(gamma_beam2,z_beam2,w_beam2,l_fwhm)
+
+#3rd beam take in everything
+x_beam3, z_beam3, ux_beam3, uz_beam3, gamma_beam3, w_beam3, t_beam3 = beam_variables(F,P)
+vx_beam3 = u2v(ux_beam3,gamma_beam3)
+vz_beam3 = u2v(uz_beam3,gamma_beam3)
+t0      = ave(t_beam3)
+dt  		= t0-t_beam3
+new_tbeam3 = t_beam3+dt
+new_zbeam3 = centralize(z_beam3,vz_beam3,dt)
+new_xbeam3 = centralize(x_beam3,vx_beam3,dt)
+en3 = gamma2energy(gamma_beam3)
+new_emitx3 = emittance_calc(new_xbeam3,ux_beam3/clight,w_beam3)
+beamStat3 = beam_statistics(gamma_beam3,z_beam3,w_beam3,l_fwhm)
+
+# -- calculating JLV quantities
+x_beam_jlv = P.xbeam_JLV()
+y_beam_jlv = P.ybeam_JLV()
+z_beam_jlv = P.zbeam_JLV()
+ux_beam_jlv = P.uxbeam_JLV()
+uy_beam_jlv = P.uybeam_JLV()
+uz_beam_jlv = P.uzbeam_JLV()
+w_beam_jlv  = P.wbeam_JLV()
+emit_jlv_calc  = emittance_calc(x_beam_jlv,ux_beam_jlv,w_beam_jlv)
 var_x_jlv=(P.xRMS_JLV()**2-P.xbar_JLV()**2)
 var_ux_jlv=(P.uxRMS_JLV()**2-P.xpbar_JLV()**2)
 cov_jlv = P.xxp_JLV()-P.xbar_JLV()*P.xpbar_JLV()
 
-emitX_jlv2.append(sqrt(var_x_jlv*var_ux_jlv-cov_jlv**2))
 
-z_rms.append(get_rms(z_beam))
-ux_rms.append(get_rms(ux_beam))
-uz_rms.append(get_rms(uz_beam))
-emitX.append(emittance_calc(x_beam,ux_beam,w_beam))
-emitZ.append(emittance_calc(z_beam,uz_beam,w_beam))
-emitX_jlv.append(P.getemittance())
-avEn_jlv.append(P.avEnergy_JLV())
-avEn.append(beamStat[0])
-z_sampled.append(Lplasma_lab*1e6)
+def myPlot():
+	plsys(3)
+	ppg(ux_beam/clight, x_beam)
+	ppg(ux_beam/clight, new_xbeam, color="red",msize=10)
+	ppg(ux_beam2/clight, x_beam2)
+	ppg(ux_beam2/clight, new_xbeam2, color="blue",msize=10)
+	ptitles("Collapsed","x[m]","ux[m]")
+
+	plsys(4)
+	ppg(uz_beam/clight, z_beam)
+	ppg(uz_beam/clight, new_zbeam, color="red",msize=10)
+	ppg(uz_beam2/clight, z_beam2)
+	ppg(uz_beam2/clight, new_zbeam2, color="blue",msize=10)
+	ptitles("Collapsed","z[m]","uz[m]")
+	
+	plsys(5)
+
+	ppg(ux_beam3/clight, x_beam3)
+	ppg(ux_beam3/clight, new_xbeam3, color="black",msize=10)
+	ptitles("Collapsed","x[m]","ux[m]")
+	
+	plsys(6)
+	ppg(uz_beam3/clight, z_beam3)
+	ppg(uz_beam3/clight, new_zbeam3, color="black",msize=10)
+	ptitles("Collapsed","z[m]","uz[m]")
+
 print "JLV",P.getemittance(),emittance_calc(x_beam,ux_beam/clight,w_beam),new_emitx
-count+=1
+
 
