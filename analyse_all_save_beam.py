@@ -1,8 +1,9 @@
 from warp import *
-#from opmd_viewer import OpenPMDTimeSeries
+from opmd_viewer import OpenPMDTimeSeries
 from collections import defaultdict
 from json import dumps,load
 import warpplot_jlv as wp
+SENTINEL  = float("inf")
 
 ###Exceptions###
 def IndexIsEmpty(Exception):
@@ -163,6 +164,7 @@ class Particles:
 	def __init__(self, filenum,dsets, gamma, timeSeries,instant,species,l_ebeam=0, file_ebeam = None):
 		self.gamma 		= gamma
 		self.l_ebeam = l_ebeam
+		self.f_sim    = f_sim
 		if self.gamma == 1:
 			self.ts     = timeSeries
 			self.instant= instant
@@ -406,7 +408,7 @@ class Particles:
 		
 	def wbeam_JLV(self):
 		return self.ws
-		
+
 	def xpbar_JLV(self):
 		if self.l_ebeam:
 			ii=where(self.beamzstations<=Lplasma_lab)
@@ -458,7 +460,13 @@ class Particles:
 		return avEnergy*1e-6
 		
 		
-	def filter(self,gamma_threshold,ROI=[]):	
+	def filter(self,gamma_threshold=[],ROI=[]):	
+		if not gamma_threshold:
+			gamma_threshold.append(0.)
+			
+		if len(gamma_threshold)==1:
+			gamma_threshold.append(SENTINEL)
+		
 		if self.gamma == 1 : 
 			z_beam = self.ts.get_particle(var_list=['z'], iteration=self.instant, species=self.species )[0]
 			z_beam =array(z_beam)*1.e-6
@@ -466,10 +474,10 @@ class Particles:
 		else:
 			z_beam = self.dsets[self.filenum]['z'][0][:]
 		if not ROI:
-			index=where(self.getgamma()>=gamma_threshold)
+			index=where((self.getgamma()>=gamma_threshold[0]) & (self.getgamma()<=gamma_threshold[1]) )
 			print "No filtering in z"
 		else:
-			index=where(((self.getgamma()>=gamma_threshold) & ((z_beam>=ROI[0]) & (z_beam<=ROI[1]))))
+			index=where((((self.getgamma()>=gamma_threshold[0]) & (self.getgamma()<=gamma_threshold[1])) & ((z_beam>=ROI[0]) & (z_beam<=ROI[1]))))
 		return index[0]	
 
 
@@ -622,6 +630,32 @@ def beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm):
 	#energy_spread = delta_EsE(energy,n_energy,l_fwhm) 
 	return average_energy, eSpread
 
+def beam_variables(F,P,gamma_threshold=[], bucket=False):
+	"""
+	bucket==0 :No bucket
+	bucket==1 : bucket in the decelerating field
+	bucket==2 : bucket in the accelerating field
+	"""
+	if bucket:
+		buckets= F.bucket()
+		if bucket==1:
+			buckets=[buckets[0][1],max(F.zValues())]
+		if bucket ==2:
+			buckets = buckets[0]
+	else:	
+		buckets=[]
+	
+	index=P.filter(gamma_threshold,buckets)
+	x_beam  = P.getxbeam(index)
+	z_beam  = P.getzbeam(index)
+	w_beam  = P.getwbeam(index)
+	gamma_beam = P.getfilteredgamma(index)
+	ux_beam = P.getfiltereduxbeam(index)
+	uz_beam = P.getfiltereduzbeam(index)
+	t_beam  = 0.0#P.gettbeam(index)
+	
+	return x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam
+
 def emittance_calc(x,ux,w):
 
   """Calculation on emittance based on statistical approach in J. Buon (LAL) Beam phase space ande Emittance
@@ -733,13 +767,18 @@ def tree(): return defaultdict(tree)
 def add(t, path):
   for node in path:
     t = t[node]
+
+def param_sim(f_sim):
+		f=open(f_sim,'r')
+		arr = f.read().split(', ')		
+		return int(arr[1]), int(arr[2]), float(arr[3]), float(arr[4])
     
 def dicts(t): return {k: dicts(t[k]) for k in t}    
 #Initialisation
 
 datadict = {'field_lab': ['Ey', 'Ez'],
 					'elec_lab': ['ne', 'phase_space', 'phase_space_low'],
-					'beam_lab': ['gamma', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'w','t']}
+					'beam_lab': ['gamma', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'w']}
 runid = 'warp_script'
 
 subfolder = 'data'
@@ -766,16 +805,17 @@ except OSError:
 
 #default values
 
-gammaBoost=[5,10]
+gammaBoost=[2,5,10]
 
 #resolution=[16,24,32,40,48]
 #gammaBoost=[1,2,5,10]
 analysis = tree()
 num_folders_gamma = len(gammaBoost)
-file_analysis  = path+"/analysis_res.txt"
+file_analysis  = path+"analysis_res.txt"
 #file_variation = "test_trans_emit"  #"external_injection_a0_2"
-#file_variation = "external_injection_a0_2_small_beam"
-file_variation = "self_injection_100_particles_highest_Nx"
+#file_variation = "external_injection_a0_2"
+file_variation = "self_injection_4_4part_highest_Nx_8cores"
+
 fileselection = range(1, 11)
 a_fileselection = [range(1,6), range(1,11), range(1,21)]
 file_json = path+ "json/analysis_%s.json" %file_variation
@@ -784,8 +824,9 @@ dtcoef=[0.2, 0.5, 1.0]
 l_plot=0
 iCount = 0
 stride = 1 
-AnalyseDifferentGammas=0
-CheckingEmittance			=1
+AnalyseDifferentGammas=1
+CheckingEmittance			=0
+self_injection=1
 
 if AnalyseDifferentGammas:
 	latency=0
@@ -795,19 +836,22 @@ if AnalyseDifferentGammas:
 		dsets = None
 		timeSeries=None
 		instant = 0
-		if gammaBoost[i]==1:
+		if gammaBoost[i]==2:
 			resolution=[16,24,32,40,48,64]
 			#resolution = [16]
-			num_folders_res = len(resolution)
+		elif gammaBoost[i]==10:
+			resolution=[16,24,32,40,48,64,96,128,192,256]
 		else:
-			resolution=[16,24,32,40,48]#,64]
+			resolution=[16,24,32,40,48,64,96,128]
 			#resolution=[16]
-			num_folders_res = len(resolution)
+		num_folders_res = len(resolution)
 
 		for j in range(0,num_folders_res):
 			folder= path+"gamma_test/gamma%d_%s/gamma%d_nzplambda%d/" %(gammaBoost[i],file_variation, gammaBoost[i],resolution[j])
 			file_ebeam = folder+"ebeamstations.pdb"
+			f_sim		= folder+"ParamNum.txt"
 			filePresent= os.path.isfile(file_ebeam)
+			filePresent=0
 			if not filePresent:
 				file_ebeam=None
 			
@@ -820,7 +864,10 @@ if AnalyseDifferentGammas:
 				data = wp.Data(runid = runid, subfolder = subfolder, fileselection = fileselection, datadict=datadict)
 				files = data.readFiles()
 				dsets = data.readDatasets()
-			species = 'electrons'
+			if self_injection:
+				species = 'electrons'
+			else:
+				species = 'beam'
 			ins_particle = (instant+1)*freq_frame	
 			#print instant, ins_particle
 			F  = Fields(corr_data_instant, dsets, gammaBoost[i], timeSeries, instant )
@@ -831,24 +878,15 @@ if AnalyseDifferentGammas:
 			z  = F.zValues()
 			dz = abs(z[1]-z[0])
 			dx = abs(x[1]-z[0])
-			buckets= F.bucket()
 			Energy_threshold  = 50  ##Energy in MeV
 			gamma_threshold = Energy_threshold/0.511  ##have to be in agreement with the input script #Defining the filtered indices
-	
-			#Defining the filtered indices
-			index = []
 			
-			index=P.filter(gamma_threshold, buckets[0])
+			##simulation parameters
+			Nx,Nz,dx,dz = param_sim(f_sim)
 			#Filtered quantities
-			x_beam  = P.getxbeam(index)
-			z_beam  = P.getzbeam(index)
-			w_beam  = P.getwbeam(index)
-		
-			ux_beam = P.getfiltereduxbeam(index)
-			uz_beam = P.getfiltereduzbeam(index)
-			gamma_beam = P.getfilteredgamma(index)
-			vx_beam = ux_beam/gamma_beam
-			vz_beam = uz_beam/gamma_beam
+			x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[gamma_threshold], 1)	
+			vx_beam = u2v(ux_beam,gamma_beam)
+			vz_beam = u2v(uz_beam,gamma_beam)
 			en = gamma2energy(gamma_beam)
 			n_energy,energy = beam_energy(gamma_beam,z_beam,w_beam,l_fwhm)
 
@@ -857,16 +895,11 @@ if AnalyseDifferentGammas:
 				myPlot(gammaBoost[i],resolution[j],iCount)	
 		
 			x_rms     = get_rms(x_beam)#get_rms(x_beam)
-			x_rms_jlv = P.xRMS_JLV()
-			ux_rms_jlv = P.uxRMS_JLV()
-			avEnergy_jlv =P.avEnergy_JLV()
-			charge_jlv = P.charge_JLV()
 			z_rms=get_rms(z_beam)
 			ux_rms=get_rms(ux_beam/clight)
 			uz_rms=get_rms(uz_beam/clight)
 			beamStat = beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm)
 			#Collapsing to the average time
-			t_beam  = P.gettbeam(index)
 			
 			t0      = ave(t_beam)
 			dt  = t0-t_beam
@@ -884,9 +917,22 @@ if AnalyseDifferentGammas:
 			emitX = emittance_calc(x_beam,ux_beam/clight,w_beam)
 			new_emitX = emittance_calc(new_x_beam,ux_beam/clight,w_beam)
 			emitZ = emittance_calc(z_beam,uz_beam/clight,w_beam)
-			emitX_jlv = P.getemittance()
 			charge = beam_charge(z_beam,w_beam,dx,dz)
 			numPart = beam_numParticles(z_beam)
+
+			if filePresent:
+				emitX_jlv = P.getemittance()
+				x_rms_jlv = P.xRMS_JLV()
+				ux_rms_jlv = P.uxRMS_JLV()
+				avEnergy_jlv =P.avEnergy_JLV()
+				charge_jlv = P.charge_JLV()
+			else:
+				emitX_jlv =0.0
+				x_rms_jlv = 0.0
+				ux_rms_jlv = 0.0
+				avEnergy_jlv = 0.0
+				charge_jlv =0.0
+		
 		
 			#read runtime
 			try:
@@ -932,6 +978,11 @@ if AnalyseDifferentGammas:
 			analysis[gammaBoost[i]][resolution[j]]['eSpread']=beamStat[1]
 			analysis[gammaBoost[i]][resolution[j]]['numPart']=numPart
 			analysis[gammaBoost[i]][resolution[j]]['runTime']=runTime
+			analysis[gammaBoost[i]][resolution[j]]['Nx']=Nx
+			analysis[gammaBoost[i]][resolution[j]]['Nz']=Nz
+			analysis[gammaBoost[i]][resolution[j]]['dx']=dx
+			analysis[gammaBoost[i]][resolution[j]]['dz']=dz
+
 			iCount+=1
 
 	resTree=[[] for i in xrange(num_folders_gamma)]
@@ -941,10 +992,12 @@ if AnalyseDifferentGammas:
 
 			with open(file_json,"w") as file_json:
 				for i,igamma in enumerate(gammaBoost):
-					if igamma==1:
+					if igamma==2:
 						resolution=[16,24,32,40,48,64]
+					elif igamma==10:
+						resolution=[16,24,32,40,48,64,96,128,192,256]
 					else:
-						resolution=[16,24,32,40,48,64]
+						resolution=[16,24,32,40,48,64,96,128]
 						#resolution=[16]
 					for j,jres in enumerate(resolution):
 						resTree[i].append({"resolution":jres,
@@ -967,7 +1020,11 @@ if AnalyseDifferentGammas:
 															"avEnergy_jlv":analysis[gammaBoost[i]][resolution[j]]['avEnergy_jlv'],
 															"eSpread":analysis[gammaBoost[i]][resolution[j]]['eSpread'],
 															"numPart":analysis[gammaBoost[i]][resolution[j]]['numPart'],
-															"runTime":analysis[gammaBoost[i]][resolution[j]]['runTime']})
+															"runTime":analysis[gammaBoost[i]][resolution[j]]['runTime'],
+															"Nx":analysis[gammaBoost[i]][resolution[j]]['Nx'],
+															"Nz":analysis[gammaBoost[i]][resolution[j]]['Nz'],
+															"dx":analysis[gammaBoost[i]][resolution[j]]['dx'],
+															"dz":analysis[gammaBoost[i]][resolution[j]]['dz']})
 					gammaTree.append({'gamma':igamma,'resolution':resTree[i]})
 
 				file_json.write(dumps(gammaTree, file_json, indent=4))
@@ -1043,7 +1100,6 @@ if CheckingEmittance:
 			#print "Lplasma",Lplasma_lab
 			bucket= F.bucket()
 			index=P.filter(gamma_threshold,bucket[0])
-			#Filtered quantities
 			x_beam  = P.getxbeam(index)
 			z_beam  = P.getzbeam(index)
 			w_beam  = P.getwbeam(index)

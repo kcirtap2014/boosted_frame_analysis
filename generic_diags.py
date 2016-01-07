@@ -10,6 +10,14 @@ def writeTime():
 		f.write("%gs" %runtime)
 		f.close()
 
+def writeNum():
+    if me ==0:
+        file="ParamNum.txt"
+    
+        f=open(file,'w')
+        f.write(", ".join(str(x) for x in param_nu))
+        f.close()
+
 def write_ptcl():
     """
       Write the particles data to a pickle file every hist_freq.

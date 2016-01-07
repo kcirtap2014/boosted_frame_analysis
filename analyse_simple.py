@@ -3,6 +3,8 @@ from warp import *
 from collections import defaultdict
 from json import dumps,load
 import warpplot_jlv as wp
+
+
 SENTINEL  = float("inf")
 ###Exceptions###
 def IndexIsEmpty(Exception):
@@ -662,6 +664,7 @@ def delta_EsE(z_spectre,spectre,l_fwhm):
   E_max=max(spectre)
   ind=argmax(spectre)
   z_spectre_max=z_spectre[ind]
+  
 
   spectre_left=spectre[0:ind]
   z_spectre_left=z_spectre[0:ind]
@@ -702,9 +705,17 @@ def myPlot(g,res,frame=0):
 	ptitles("Ez-field","z(m)")
 	
 def beam_variables(F,P,gamma_threshold=[], bucket=False):
+	"""
+	bucket==0 :No bucket
+	bucket==1 : bucket in the decelerating field
+	bucket==2 : bucket in the accelerating field
+	"""
 	if bucket:
 		buckets= F.bucket()
-		buckets = buckets[0]
+		if bucket==1:
+			buckets=[buckets[0][1],max(F.zValues())]
+		if bucket ==2:
+			buckets = buckets[0]
 	else:	
 		buckets=[]
 	
@@ -731,31 +742,34 @@ def add(t, path):
   for node in path:
     t = t[node]
     
-def myPlot():
+def myPlot(pdf =0):
 	plsys(3)
-	ppg(ux_beam/clight, x_beam)
-	ppg(ux_beam/clight, new_xbeam, color="red",msize=10)
-	ppg(ux_beam2/clight, x_beam2)
-	ppg(ux_beam2/clight, new_xbeam2, color="blue",msize=10)
-	ptitles("Collapsed","x[m]","ux[m]")
+	ppg(ux_beam/clight, x_beam,color="red",msize=10)
+	ppg(ux_beam2/clight, x_beam2, color="blue",msize=10)
+	
+	ptitles("Diff En","x[m]","ux[m]")
+	limits(min(x),max(x), min(ux_beam3/clight)-0.1*min(ux_beam3/clight), max(ux_beam3/clight)+0.1*max(ux_beam3/clight))
 
 	plsys(4)
-	ppg(uz_beam/clight, z_beam)
-	ppg(uz_beam/clight, new_zbeam, color="red",msize=10)
-	ppg(uz_beam2/clight, z_beam2)
-	ppg(uz_beam2/clight, new_zbeam2, color="blue",msize=10)
-	ptitles("Collapsed","z[m]","uz[m]")
+	ppg(uz_beam/clight, z_beam, color="red",msize=10)
+	ppg(uz_beam2/clight, z_beam2, color="blue",msize=10)
+	ptitles("Diff En","z[m]","uz[m]")
+	limits(min(z),max(z),min(uz_beam3/clight)-0.1*min(uz_beam3/clight),max(uz_beam3/clight)+0.1*max(uz_beam3/clight))
 	
 	plsys(5)
-
-	ppg(ux_beam3/clight, x_beam3)
-	ppg(ux_beam3/clight, new_xbeam3, color="black",msize=10)
-	ptitles("Collapsed","x[m]","ux[m]")
+	ppg(Ez,z)
+	#ppg(ux_beam3/clight, x_beam3)
+	#ppg(ux_beam3/clight, new_xbeam3, color="black",msize=10)
+	#ptitles("All Part","x[m]","ux[m]")
+	#limits(min(x),max(x), min(ux_beam3/clight)-0.1*min(ux_beam3/clight), max(ux_beam3/clight)+0.1*max(ux_beam3/clight))
 	
 	plsys(6)
 	ppg(uz_beam3/clight, z_beam3)
 	ppg(uz_beam3/clight, new_zbeam3, color="black",msize=10)
-	ptitles("Collapsed","z[m]","uz[m]")
+	ptitles("All Part","z[m]","uz[m]")
+	limits(min(z), max(z),min(uz_beam3/clight)-0.1*min(uz_beam3/clight),max(uz_beam3/clight)+0.1*max(uz_beam3/clight)) 
+	if pdf:
+		pdf("gamma%d_resolution%d" %(gammaBoost,resolution))
 
     
 def dicts(t): return {k: dicts(t[k]) for k in t}    
@@ -789,9 +803,7 @@ except OSError:
 
 #default values
 
-gammaBoost=[10]
 analysis = tree()
-num_folders_gamma = len(gammaBoost)
 file_analysis  = path+"/analysis_res.txt"
 
 file_variation = "self_injection_100_particles_highest_Nx"
@@ -807,19 +819,19 @@ dsets = None
 timeSeries=None
 instant = 0
 ins_particle   = 0
-gammaBoost = 5
-resolution=32
+gammaBoost = 10
+resolution=96
 subtext = ""
 folder=path+"gamma_test/gamma%d_%s/gamma%d_nzplambda%d%s/" %(gammaBoost,file_variation, gammaBoost,resolution,subtext)
 species = 'beam'
 file_ebeam = folder+"ebeamstations.pdb"
 filePresent= os.path.isfile(file_ebeam)
-
+filePresent=0
 if not filePresent:
 	file_ebeam=None
 
 Energy_threshold = 50
-gamma_threshold = [Energy_threshold/0.511,]  ##have to be in agreement with the input script #Defining the filtered indices
+gamma_threshold = [Energy_threshold/0.511]  ##have to be in agreement with the input script #Defining the filtered indices
 
 latency=0e-6
 l_fwhm=1
@@ -829,6 +841,7 @@ count =0
 i = input('Choose the file number: ')
 
 Lplasma_lab=(i+1)*Lplasma_lab_all/len(fileselection)-latency
+
 print "You have chosen file %d, corresponding to Lplasma= %g" %(i, Lplasma_lab)
 subfolder = "%sdata" %folder
 data = wp.Data(runid = runid, subfolder = subfolder, fileselection = fileselection, datadict=datadict)
@@ -837,10 +850,14 @@ dsets = data.readDatasets()
 
 F  = Fields(i, dsets, gammaBoost, timeSeries, instant)
 P  = Particles(i,dsets, gammaBoost, timeSeries, ins_particle, species, filePresent, file_ebeam )
-
+Ey = F.field_on_axis_Ey()
+Ez = F.field_on_axis_Ez()
+# -- Window box
+z = F.zValues()
+x = F.xValues()
 #1st beam
 # -- calculating DESY quantities
-x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[50, 50./0.511],True)	
+x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[30./0.511],2)	
 vx_beam = u2v(ux_beam,gamma_beam)
 vz_beam = u2v(uz_beam,gamma_beam)
 
@@ -855,7 +872,7 @@ new_emitx = emittance_calc(new_xbeam,ux_beam/clight,w_beam)
 beamStat = beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm)
 
 #2nd beam
-x_beam2, z_beam2, ux_beam2, uz_beam2, gamma_beam2, w_beam2, t_beam2 = beam_variables(F,P,[50./0.511],True)
+x_beam2, z_beam2, ux_beam2, uz_beam2, gamma_beam2, w_beam2, t_beam2 = beam_variables(F,P,[50./0.511],1)
 vx_beam2 = u2v(ux_beam2,gamma_beam2)
 vz_beam2 = u2v(uz_beam2,gamma_beam2)
 t0      = ave(t_beam2)
@@ -881,20 +898,22 @@ new_emitx3 = emittance_calc(new_xbeam3,ux_beam3/clight,w_beam3)
 beamStat3 = beam_statistics(gamma_beam3,z_beam3,w_beam3,l_fwhm)
 
 # -- calculating JLV quantities
-x_beam_jlv = P.xbeam_JLV()
-y_beam_jlv = P.ybeam_JLV()
-z_beam_jlv = P.zbeam_JLV()
-ux_beam_jlv = P.uxbeam_JLV()
-uy_beam_jlv = P.uybeam_JLV()
-uz_beam_jlv = P.uzbeam_JLV()
-w_beam_jlv  = P.wbeam_JLV()
-emit_jlv_calc  = emittance_calc(x_beam_jlv,ux_beam_jlv,w_beam_jlv)
-var_x_jlv=(P.xRMS_JLV()**2-P.xbar_JLV()**2)
-var_ux_jlv=(P.uxRMS_JLV()**2-P.xpbar_JLV()**2)
-cov_jlv = P.xxp_JLV()-P.xbar_JLV()*P.xpbar_JLV()
+if filePresent:
+	x_beam_jlv = P.xbeam_JLV()
+	y_beam_jlv = P.ybeam_JLV()
+	z_beam_jlv = P.zbeam_JLV()
+	ux_beam_jlv = P.uxbeam_JLV()
+	uy_beam_jlv = P.uybeam_JLV()
+	uz_beam_jlv = P.uzbeam_JLV()
+	w_beam_jlv  = P.wbeam_JLV()
+	emit_jlv_calc  = emittance_calc(x_beam_jlv,ux_beam_jlv,w_beam_jlv)
+	var_x_jlv=(P.xRMS_JLV()**2-P.xbar_JLV()**2)
+	var_ux_jlv=(P.uxRMS_JLV()**2-P.xpbar_JLV()**2)
+	cov_jlv = P.xxp_JLV()-P.xbar_JLV()*P.xpbar_JLV()
+	print "JLV",P.getemittance(),emittance_calc(x_beam,ux_beam/clight,w_beam),new_emitx
 
+myPlot(0)
+pdf("gamma%d_resolution%d_snapshot%d" %(gammaBoost, resolution,i))
 
-myPlot()
-print "JLV",P.getemittance(),emittance_calc(x_beam,ux_beam/clight,w_beam),new_emitx
 
 
