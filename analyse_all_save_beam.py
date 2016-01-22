@@ -3,6 +3,7 @@ from opmd_viewer import OpenPMDTimeSeries
 from collections import defaultdict
 from json import dumps,load
 import warpplot_jlv as wp
+import PRpickle as PR
 SENTINEL  = float("inf")
 
 ###Exceptions###
@@ -164,7 +165,6 @@ class Particles:
 	def __init__(self, filenum,dsets, gamma, timeSeries,instant,species,l_ebeam=0, file_ebeam = None):
 		self.gamma 		= gamma
 		self.l_ebeam = l_ebeam
-		self.f_sim    = f_sim
 		if self.gamma == 1:
 			self.ts     = timeSeries
 			self.instant= instant
@@ -805,7 +805,7 @@ except OSError:
 
 #default values
 
-gammaBoost=[2,5,10]
+gammaBoost=[5,10]
 
 #resolution=[16,24,32,40,48]
 #gammaBoost=[1,2,5,10]
@@ -813,8 +813,8 @@ analysis = tree()
 num_folders_gamma = len(gammaBoost)
 file_analysis  = path+"analysis_res.txt"
 #file_variation = "test_trans_emit"  #"external_injection_a0_2"
-#file_variation = "external_injection_a0_2"
-file_variation = "self_injection_4_4part_highest_Nx_8cores"
+#file_variation = "external_injection_a0_2_small_beam"
+file_variation = "self_injection_4_4part_fixed_Nx_8cores"
 
 fileselection = range(1, 11)
 a_fileselection = [range(1,6), range(1,11), range(1,21)]
@@ -825,7 +825,7 @@ l_plot=0
 iCount = 0
 stride = 1 
 AnalyseDifferentGammas=1
-CheckingEmittance			=0
+CheckingEmittance		=0
 self_injection=1
 
 if AnalyseDifferentGammas:
@@ -851,7 +851,7 @@ if AnalyseDifferentGammas:
 			file_ebeam = folder+"ebeamstations.pdb"
 			f_sim		= folder+"ParamNum.txt"
 			filePresent= os.path.isfile(file_ebeam)
-			filePresent=0
+			
 			if not filePresent:
 				file_ebeam=None
 			
@@ -882,9 +882,12 @@ if AnalyseDifferentGammas:
 			gamma_threshold = Energy_threshold/0.511  ##have to be in agreement with the input script #Defining the filtered indices
 			
 			##simulation parameters
-			Nx,Nz,dx,dz = param_sim(f_sim)
+			try:
+				Nx,Nz,dx,dz = param_sim(f_sim)
+			except IOError:
+				Nx =Nz =dx =dz =0.0
 			#Filtered quantities
-			x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[gamma_threshold], 1)	
+			x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[gamma_threshold])	
 			vx_beam = u2v(ux_beam,gamma_beam)
 			vz_beam = u2v(uz_beam,gamma_beam)
 			en = gamma2energy(gamma_beam)
@@ -995,9 +998,9 @@ if AnalyseDifferentGammas:
 					if igamma==2:
 						resolution=[16,24,32,40,48,64]
 					elif igamma==10:
-						resolution=[16,24,32,40,48,64,96,128,192,256]
+						resolution=[16,24,32,40,48,64, 96,128,192,256]
 					else:
-						resolution=[16,24,32,40,48,64,96,128]
+						resolution=[16,24,32,40,48,64, 96,128]
 						#resolution=[16]
 					for j,jres in enumerate(resolution):
 						resTree[i].append({"resolution":jres,
@@ -1036,8 +1039,8 @@ if CheckingEmittance:
 		timeSeries=None
 		instant = 0
 		ins_particle   = 0
-		gammaBoost = 5
-		resolution=16
+		gammaBoost = 2
+		resolution=64
 		subtext = ""
 		folder=path+"gamma_test/gamma%d_%s/gamma%d_nzplambda%d%s/" %(gammaBoost,file_variation, gammaBoost,resolution,subtext)
 		species = 'electrons'
@@ -1098,18 +1101,19 @@ if CheckingEmittance:
 				P  = Particles(i,dsets, gammaBoost, timeSeries, ins_particle, species, filePresent, file_ebeam )
 			
 			#print "Lplasma",Lplasma_lab
-			bucket= F.bucket()
-			index=P.filter(gamma_threshold,bucket[0])
-			x_beam  = P.getxbeam(index)
-			z_beam  = P.getzbeam(index)
-			w_beam  = P.getwbeam(index)
-			
-			t_beam  = P.gettbeam(index)
-			z				= F.zValues()
-			x 			= F.xValues()
-			dz			= z[1]-z[0]
-			dx			= x[1]-x[0]
-		
+			#Filtered quantities
+			Ez = F.field_on_axis_Ez()
+			Ey = F.field_on_axis_Ey()
+			x  = F.xValues()
+			z  = F.zValues()
+			dz = abs(z[1]-z[0])
+			dx = abs(x[1]-z[0])
+			x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[gamma_threshold])	
+			vx_beam = u2v(ux_beam,gamma_beam)
+			vz_beam = u2v(uz_beam,gamma_beam)
+			en = gamma2energy(gamma_beam)
+			n_energy,energy = beam_energy(gamma_beam,z_beam,w_beam,l_fwhm)
+
 			charge.append(beam_charge(z_beam,w_beam,dx,dz))
 			
 			x_beam_jlv = P.xbeam_JLV()
@@ -1130,32 +1134,11 @@ if CheckingEmittance:
 			emit_jlv_calc  = emittance_calc(x_beam_jlv,ux_beam_jlv,w_beam_jlv)
 			
 			
-			gamma_beam = P.getfilteredgamma(index)
-			ux_beam = P.getfiltereduxbeam(index)
-			uz_beam = P.getfiltereduzbeam(index)
 			vx_beam = u2v(ux_beam,gamma_beam)
 			vz_beam = u2v(uz_beam,gamma_beam)
 			en = gamma2energy(gamma_beam)
 			
-			
-			#Collapsing to the average time
-			t_beam  = P.gettbeam(index)
-			
-			t0      = ave(t_beam)
-			dt  = t0-t_beam
-			#print "**old_xbeam**",x_beam
-			new_x_beam=centralize(x_beam,vx_beam,dt)
-			new_z_beam=centralize(z_beam,vz_beam,dt)
-			new_xbeam_save= new_x_beam
-			ux_beam_save=ux_beam
-			#print '**dt**',dt
-			#print "**t_beam**",t_beam
-			#print "**vz_beam**", vz_beam
-			#print "**new_xbeam**",x_beam
-			
-			#myPlot(gammaBoost,resolution,frame=count)
 		
-			#x_beam  = centralize(x_beam, vx_beam, (Lplasma_lab-z_beam)/vz_beam)
 			try:
 				w_x.append(average(x_beam,weights=w_beam))
 				w_ux.append(average(ux_beam/clight,weights=w_beam))
@@ -1165,9 +1148,9 @@ if CheckingEmittance:
 			xxpp = sum(x_beam*ux_beam/clight)/len(x_beam)
 			if math.isnan(xxpp):
 				xxpp=0.0
-			xxp.append(xxpp)
+
 			beamStat = beam_statistics(gamma_beam,z_beam,w_beam,l_fwhm)
-			new_x_rms.append(get_rms(new_x_beam))
+			
 			x_rms.append(get_rms(x_beam))
 			x_rms_jlv.append(P.xRMS_JLV())
 			xxp_jlv.append(P.xxp_JLV())
@@ -1176,11 +1159,6 @@ if CheckingEmittance:
 			ux_bar_jlv.append(P.xpbar_JLV())
 			charge_jlv.append(P.charge_JLV())
 			num_part.append(len(z_beam))
-			var_x_jlv=(P.xRMS_JLV()**2-P.xbar_JLV()**2)
-			var_ux_jlv=(P.uxRMS_JLV()**2-P.xpbar_JLV()**2)
-			cov_jlv = P.xxp_JLV()-P.xbar_JLV()*P.xpbar_JLV()
-		
-			emitX_jlv2.append(sqrt(var_x_jlv*var_ux_jlv-cov_jlv**2))
 		
 			z_rms.append(get_rms(z_beam))
 			ux_rms.append(get_rms(ux_beam/clight))
@@ -1191,12 +1169,11 @@ if CheckingEmittance:
 			avEn_jlv.append(P.avEnergy_JLV())
 			avEn.append(beamStat[0])
 			z_sampled.append(Lplasma_lab*1e6)
-			new_emitX.append(emittance_calc(new_x_beam,ux_beam/clight,w_beam))
-			print "JLV",P.getemittance(),emittance_calc(x_beam,ux_beam/clight,w_beam),emittance_calc(new_x_beam,ux_beam/clight,w_beam)
+			print "JLV",P.getemittance(),emittance_calc(x_beam,ux_beam/clight,w_beam)
 			count+=1
 		
 		write(z_sampled,x_rms,"%sx_rms_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(z_sampled,new_x_rms,"%snew_x_rms_%s%s.txt" %(path_analysis,file_variation,subtext))
+		write(z_sampled,emitX,"%semitX_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,w_x,"%sw_x_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,x_rms_jlv,"%sx_rms_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,charge_jlv,"%scharge_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
@@ -1207,28 +1184,19 @@ if CheckingEmittance:
 		write(P.beamzstations,P.xrmsstations,"%sx_rms_jlv_all_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,ux_rms,"%sux_rms_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(x_beam,ux_beam,"%sx_ux_beam_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(new_xbeam_save,ux_beam_save,"%snew_x_ux_beam_%s%s.txt" %(path_analysis,file_variation,subtext))
 
 		write(z_beam,uz_beam,"%sz_uz_beam_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(x_beam_jlv,ux_beam_jlv,"%sx_ux_beam_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_beam_jlv,uz_beam_jlv,"%sz_uz_beam_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		emit_middle_point = emittance_calc(P.xs,P.uxs/clight,ones(shape(P.xs)[0]))
 		#write(t_beam,z_beam,"./%s/t_z_beam_%s.txt" %(path,file_variation))
-		write(z_sampled,xxp,"%sxxp_%s%s.txt" %(path_analysis,file_variation,subtext))
 		
-		write(z_sampled,xxp_jlv,"%sxxp_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,w_ux,"%sw_ux_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,ux_rms_jlv,"%sux_rms_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,ux_bar_jlv,"%sux_bar_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,avEn,"%savEn%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(z_sampled,avEn_jlv,"%savEn_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
 		
-		emitnstations = savitzky_golay(P.xemitnstations, 11, 2)
-		xprmsstations = savitzky_golay(P.xprmsstations, 11, 2)
-		xrmsstations = savitzky_golay(P.xrmsstations, 11, 2)
-		xpbarstations = savitzky_golay(P.xpbarstations, 11, 2)
-		xbarstations = savitzky_golay(P.xbarstations, 11, 2)
-		xxpstations = savitzky_golay(P.xxpstations, 11, 2)
 		write([ave(P.zs)],[emit_middle_point],"%semit_middle_point_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(P.beamzstations,P.xprmsstations,"%sxp_rms_jlv_all_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(P.xs,P.uxs,"%sxsuxs_%s%s.txt" %(path_analysis,file_variation,subtext))
@@ -1237,20 +1205,11 @@ if CheckingEmittance:
 		write(P.beamzstations,P.xpbarstations,"%sux_bar_jlv_all_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(P.beamzstations,P.xxpstations,"%sxxp_jlv_all_%s%s.txt" %(path_analysis,file_variation,subtext))
 		write(P.beamzstations,P.xemitnstations,"%semitX_jlv_all_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(P.beamzstations,emitnstations,"%semitX_jlv_all_smoothed_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(P.beamzstations,xbarstations,"%sx_bar_jlv_all_smoothed_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(P.beamzstations,xpbarstations,"%sux_bar_jlv_all_smoothed_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(P.beamzstations,xxpstations,"%sxxp_jlv_all_smoothed_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(P.beamzstations,xprmsstations,"%sxp_rms_jlv_all_smoothed_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(P.beamzstations,xrmsstations,"%sx_rms_jlv_all_smoothed_%s%s.txt" %(path_analysis,file_variation,subtext))
-
+	
 		gB=[gammaBoost]
 		res=[resolution]
 		write(gB,res,"%sgamma_nzplambda_%s%s.txt" %(path_analysis,file_variation,subtext))
 
-		write(z_sampled,emitX,"%semitX_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(z_sampled,new_emitX,"%snew_emitX_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(z_sampled,emitX_jlv,"%semitX_jlv_%s%s.txt" %(path_analysis,file_variation,subtext))
-		write(z_sampled,emitX_jlv2,"%semitX_jlv2_%s%s.txt" %(path_analysis,file_variation,subtext))
+
 		
 	
