@@ -840,7 +840,7 @@ if AnalyseDifferentGammas:
 			resolution=[16,24,32,40,48,64]
 			#resolution = [16]
 		elif gammaBoost[i]==10:
-			resolution=[16,24,32,40,48,64,96,128,192,256]
+			resolution=[16,24,32,40,48,64,96,128,256]
 		else:
 			resolution=[16,24,32,40,48,64,96,128]
 			#resolution=[16]
@@ -998,7 +998,7 @@ if AnalyseDifferentGammas:
 					if igamma==2:
 						resolution=[16,24,32,40,48,64]
 					elif igamma==10:
-						resolution=[16,24,32,40,48,64, 96,128,192,256]
+						resolution=[16,24,32,40,48,64, 96,128,256]
 					else:
 						resolution=[16,24,32,40,48,64, 96,128]
 						#resolution=[16]
