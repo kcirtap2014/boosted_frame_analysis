@@ -36,7 +36,7 @@ file_variation = "external_injection_a0_2"
 file_variation = "external_injection_a0_2_small_beam"
 file_variation = "imposed_Ex"
 file_variation = "jlv_diag_test"
-file_variation = "self_injection_100_particles_highest_Nx"
+file_variation = "self_injection_4_4part_highest_Nx_8cores"
 snapshots=[0.2,0.5,1.0]
 l_snapshots = 0
 path = "/Volumes/WSIM4/boosted_frame/test_diag_edison/"
@@ -52,130 +52,45 @@ except OSError:
 gamma,nzplambda = getdatafromtextfile(path+'Analysis_Data/gamma_nzplambda_%s.txt' %(file_variation),dims=[2,None])
 z,emitX         = getdatafromtextfile(path+'Analysis_Data/emitX_%s.txt' %(file_variation),dims=[2,None])
 z,charge         = getdatafromtextfile(path+'Analysis_Data/charge_%s.txt' %(file_variation),dims=[2,None])
-z,charge_jlv         = getdatafromtextfile(path+'Analysis_Data/charge_jlv_%s.txt' %(file_variation),dims=[2,None])
 z,num_part     = getdatafromtextfile(path+'Analysis_Data/num_part_%s.txt' %(file_variation),dims=[2,None])
-
-z_all,charge_jlv_all      = getdatafromtextfile(path+'Analysis_Data/charge_jlv_all_%s.txt' %(file_variation),dims=[2,None])
-
-z,new_emitX         = getdatafromtextfile(path+'Analysis_Data/new_emitX_%s.txt' %(file_variation),dims=[2,None])
-
 zs,emitxs    = getdatafromtextfile(path+'Analysis_Data/emit_middle_point_%s.txt'%(file_variation),dims=[2,None])
-
-z,emitX_jlv     = getdatafromtextfile(path+'Analysis_Data/emitX_jlv_%s.txt'%(file_variation),dims=[2,None])
-z,emitX_jlv2    = getdatafromtextfile(path+'Analysis_Data/emitX_jlv2_%s.txt'%(file_variation),dims=[2,None])
-z_all,emitX_jlv_all    = getdatafromtextfile(path+'Analysis_Data/emitX_jlv_all_%s.txt'%(file_variation),dims=[2,None])
-z_all,emitX_jlv_all_smoothed    = getdatafromtextfile(path+'Analysis_Data/emitX_jlv_all_smoothed_%s.txt'%(file_variation),dims=[2,None])
-
 z_beam,uz_beam  = getdatafromtextfile(path+'Analysis_Data/z_uz_beam_%s.txt'%(file_variation),dims=[2,None])
-z_beam_jlv,uz_beam_jlv  = getdatafromtextfile(path+'Analysis_Data/z_uz_beam_jlv_%s.txt'%(file_variation),dims=[2,None])
-x_beam_jlv,ux_beam_jlv  = getdatafromtextfile(path+'Analysis_Data/x_ux_beam_jlv_%s.txt'%(file_variation),dims=[2,None])
-
 x_beam,ux_beam  = getdatafromtextfile(path+'Analysis_Data/x_ux_beam_%s.txt'%(file_variation),dims=[2,None])
-new_xbeam,new_uxbeam  = getdatafromtextfile(path+'Analysis_Data/new_x_ux_beam_%s.txt'%(file_variation),dims=[2,None])
-
 z,x_rms         = getdatafromtextfile(path+'Analysis_Data/x_rms_%s.txt'%(file_variation),dims=[2,None])
-z,new_x_rms         = getdatafromtextfile(path+'Analysis_Data/new_x_rms_%s.txt'%(file_variation),dims=[2,None])
-
-z,x_bar_jlv     = getdatafromtextfile(path+'Analysis_Data/x_bar_jlv_%s.txt'%(file_variation),dims=[2,None])
-z,xxp_jlv       = getdatafromtextfile(path+'Analysis_Data/xxp_jlv_%s.txt'%(file_variation),dims=[2,None])
-z,xxp           = getdatafromtextfile(path+'Analysis_Data/xxp_%s.txt'%(file_variation),dims=[2,None])
-z_all,xxp_jlv_all = getdatafromtextfile(path+'Analysis_Data/xxp_jlv_all_%s.txt'%(file_variation),dims=[2,None])
-z_all,xxp_jlv_all_smoothed = getdatafromtextfile(path+'Analysis_Data/xxp_jlv_all_smoothed_%s.txt'%(file_variation),dims=[2,None])
-
-#t_beam,z_beam   = getdatafromtextfile(path+'Analysis_Data/t_z_beam_%s.txt'%(file_variation),dims=[2,None])
-z_all,x_bar_jlv_all = getdatafromtextfile(path+'Analysis_Data/x_bar_jlv_all_%s.txt'%(file_variation),dims=[2,None])
-z_all,x_bar_jlv_all_smoothed = getdatafromtextfile(path+'Analysis_Data/x_bar_jlv_all_smoothed_%s.txt'%(file_variation),dims=[2,None])
-
 z,w_ux          = getdatafromtextfile(path+'Analysis_Data/w_ux_%s.txt'%(file_variation),dims=[2,None])
 z,w_x           = getdatafromtextfile(path+'Analysis_Data/w_x_%s.txt'%(file_variation),dims=[2,None])
-z,x_rms_jlv     = getdatafromtextfile(path+'Analysis_Data/x_rms_jlv_%s.txt'%(file_variation),dims=[2,None])
-z_all,x_rms_jlv_all = getdatafromtextfile(path+'Analysis_Data/x_rms_jlv_all_%s.txt'%(file_variation),dims=[2,None])
-z_all,xp_rms_jlv_all = getdatafromtextfile(path+'Analysis_Data/xp_rms_jlv_all_%s.txt'%(file_variation),dims=[2,None])
-z_all,x_rms_jlv_all_smoothed = getdatafromtextfile(path+'Analysis_Data/x_rms_jlv_all_smoothed_%s.txt'%(file_variation),dims=[2,None])
-z_all,xp_rms_jlv_all_smoothed = getdatafromtextfile(path+'Analysis_Data/xp_rms_jlv_all_smoothed_%s.txt'%(file_variation),dims=[2,None])
-
-z,ux_rms_jlv    = getdatafromtextfile(path+'Analysis_Data/ux_rms_jlv_%s.txt'%(file_variation),dims=[2,None])
 z,ux_rms        = getdatafromtextfile(path+'Analysis_Data/ux_rms_%s.txt'%(file_variation),dims=[2,None])
-z,ux_bar_jlv    = getdatafromtextfile(path+'Analysis_Data/ux_bar_jlv_%s.txt'%(file_variation),dims=[2,None])
-z_all,ux_bar_jlv_all = getdatafromtextfile(path+'Analysis_Data/ux_bar_jlv_all_%s.txt'%(file_variation),dims=[2,None])
-z_all,ux_bar_jlv_all_smoothed = getdatafromtextfile(path+'Analysis_Data/ux_bar_jlv_all_smoothed_%s.txt'%(file_variation),dims=[2,None])
-
-z,avEn_jlv      = getdatafromtextfile(path+'Analysis_Data/avEn_jlv_%s.txt'%(file_variation),dims=[2,None])
 z,avEn          = getdatafromtextfile(path+'Analysis_Data/avEn%s.txt'%(file_variation),dims=[2,None])
-z_all,avEn_jlv_all = getdatafromtextfile(path+'Analysis_Data/avEn_jlv_all_%s.txt'%(file_variation),dims=[2,None])
 x_middle,ux_middle = getdatafromtextfile(path+'Analysis_Data/xsuxs_%s.txt'%(file_variation),dims=[2,None])
 os.chdir(path_beam)
 
 winon(0)
 plsys(3)
-plg(x_rms_jlv_all, z_all*1e6, color="green")
-plg(x_rms,z,color='red')	
-plp(x_rms, z, marker='\4',color="red")
-plg(x_rms_jlv, z, color="blue")
-plp(x_rms_jlv, z, marker='\2',color="blue")
-#plg(new_x_rms,z,color="magenta")	
-#plp(new_x_rms,z,color="magenta",marker='\4')	
-#plp(x_rms_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
+plg(x_rms*1e6,z,color='red')	
+plp(x_rms*1e6, z, marker='\4',color="red")
+ptitles("","z (um)","X_RMS (mm)")
 
-#
-
-ptitles("","z (um)","X_RMS")
 plsys(4)
-plg(xp_rms_jlv_all, z_all*1e6, color="green")
-plg(ux_rms,z,color='red')	
-plp(ux_rms, z, marker='\4',color="red")
-plg(ux_rms_jlv, z, color="blue")
-plp(ux_rms_jlv, z, marker='\2',color="blue")
-#plp(xp_rms_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
+plg(charge*1e-3,z,color='red')	
+plp(charge*1e-3, z, marker='\4',color="red")
+ptitles("","z (um)","Charge (nC)")
 
-#
-
-
-ptitles("","z (um)","UX_RMS")
 plsys(5)
-plg(emitX_jlv_all, z_all*1e6, marker='\3',color="green")
-plg(emitX,z,color='red')	
-plp(emitX, z, marker='\4',color="red")
-plg(emitX_jlv, z, color="blue")
-plp(emitX_jlv, z, marker='\2',color="blue")
-#plp(emitX_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
-#ppg(emitxs,zs*1e6,color=blue,msize=10)
-#plg(new_emitX,z,color="magenta")	
-#plp(new_emitX,z,color="magenta",marker='\4')	
-#plg(emitX_jlv_all, z_all*1e6, color="green")
-#
-ptitles("","z (um)","emitX")
+plg(emitX*1e6,z,color='red')	
+plp(emitX*1e6,z, marker='\4',color='red')	
+
+ptitles("","z (um)","emitX (mm.mrad)")
 
 plsys(6)
 plg(avEn, z, color='red')
 plp(avEn, z, marker='\4',color="red")
-plg(avEn_jlv, z, color="blue")
-plp(avEn_jlv, z, marker='\4',color="blue")
-plg(avEn_jlv_all, z_all*1e6, color="green")
+
 ptitles("avEn","z(m)","E(MeV)")
-#plp(ux_beam/clight,x_beam)	
-#ptitles("Uncollapsed")
-#plp(new_uxbeam/clight,new_xbeam,color="red")
 
-
-#ppco(ux_middle/clight,x_middle,z_beam)	
-#limits(min(z), max(z), 0.9*min(uz_beam_jlv),1.1*max(uz_beam_jlv))
-#limits(-10e-7,10e-7,-5,5)
-#ptitles("","x (m)","ux_beam")
-
-
-#plp(x_bar_jlv_all_smoothed, z_all*1e6, marker='\2',color="magenta")
-
-#plg(x_bar_jlv_all, z_all*1e6, color="green")
-#plg(avEn,z,color='red')	
-#plp(avEn, z, marker='\4',color="red")
-#plg(avEn_jlv, z, color="blue")
-#plp(avEn_jlv, z, marker='\2',color="blue")
-#
 
 pdf("evolution_case_gamma_%d_nzplambda_%d_a_20_beamstations" %(gamma,nzplambda))
 
-if True:
+if False:
 	winon(1)
 
 	plsys(5)
@@ -185,8 +100,7 @@ if True:
 	plg(x_bar_jlv_all, z_all*1e6, color="green")
 	plg(w_x,z,color='red')	
 	plp(w_x, z, marker='\4',color="red")
-	plg(x_bar_jlv, z, color="blue")
-	plp(x_bar_jlv, z, marker='\2',color="blue")
+	
 	ptitles("","z (um)","xbar")
 	
 	plsys(6)

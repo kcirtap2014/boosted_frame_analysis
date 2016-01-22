@@ -1,4 +1,5 @@
 from warp import *
+import PWpickle as PW
 # --- define shortcut
 ppg=ppgeneric
 
@@ -681,7 +682,7 @@ def updatebeamstations():
         # --- compute gamma in lab frame
         myglab = sqrt(1.+(uxlab**2+uylab**2+uzlab**2)/clight**2)
         # --- compute kinetic energy in lab frame
-        mykelab = beam.sm*(myglab-1.)*clight**2/echarge
+        mykelab = par.sm*(myglab-1.)*clight**2/echarge
         # --- defines cutoffs if particle selection is ON
         if l_pselect:
             # --- set threshold on radius
@@ -753,7 +754,7 @@ def updatebeamstations():
             yplab = uylab/clight # normalized (gamma*beta*yp) 
             nz = shape(ekstations)[0]
             deposgrid1dw(1,np,zlab,mykelab,w,nz-1,ekstations,ekstationscnt,beamzstations[0],beamzstations[-1])
-            deposgrid1dw(1,np,zlab,beam.sm*uzlab*clight/echarge,w,nz-1,ppzstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
+            deposgrid1dw(1,np,zlab,par.sm*uzlab*clight/echarge,w,nz-1,ppzstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
             deposgrid1dw(1,np,zlab,x,w,nz-1,xbarstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
             deposgrid1dw(1,np,zlab,x**2,w,nz-1,xsqstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
             deposgrid1dw(1,np,zlab,xplab,w,nz-1,xpbarstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
@@ -767,7 +768,7 @@ def updatebeamstations():
                 deposgrid1dw(1,np,zlab,y*yplab,w,nz-1,yypstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
             deposgrid1dw(1,np,zlab,tlab,w,nz-1,tbarstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
             deposgrid1dw(1,np,zlab,tlab**2,w,nz-1,tsqstations,ekstationscnt2,beamzstations[0],beamzstations[-1])
-            setgrid2dw(np,zlab,uzlab*beam.sm*clight/echarge,w,nz-1,npz-1,pzstations,
+            setgrid2dw(np,zlab,uzlab*par.sm*clight/echarge,w,nz-1,npz-1,pzstations,
                         beamzstations[0],beamzstations[-1],pzbeamstations[0],pzbeamstations[-1])
     if top.it%hist_freq==0:
         savebeamstations()

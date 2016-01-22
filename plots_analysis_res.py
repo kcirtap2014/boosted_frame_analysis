@@ -6,7 +6,7 @@ import os
 
 l_charge=0
 l_emittance=0
-l_emittance_Nx_Nz=0
+
 l_Desy=0
 l_energy=0
 l_rms = 0
@@ -14,7 +14,7 @@ l_runtime=0
 
 commandNotUnderstood=True
 while commandNotUnderstood:
-	print "Please choose the following: \n 1 : l_charge\n 2 : l_emittance \n 3 : l_emittance (with Nx and Nz) \n 4 : l_energy \n 5 : l_rms \n 6 : l_runtime"
+	print "Please choose the following: \n 1 : l_charge\n 2 : l_emittance  \n 3 : l_energy \n 4 : l_rms \n 5 : l_runtime"
 	nb = input('Choose a number: ')
 
 	if nb ==1:
@@ -24,27 +24,32 @@ while commandNotUnderstood:
 		l_emittance=1
 		commandNotUnderstood=False
 	elif nb ==3:
-		l_emittance_Nx_Nz=1
-		commandNotUnderstood=False
-	elif nb ==4:
 		l_energy=1
 		commandNotUnderstood=False
-	elif nb ==5:
+	elif nb ==4:
 		l_rms=1
 		commandNotUnderstood=False
-	elif nb ==6:
+	elif nb ==5:
 		l_runtime=1
 		commandNotUnderstood=False
 	else:
 		commandNotUnderstood=True
-		print "Command not understood, please choose the following: \n 1 : l_charge\n 2 : l_emittance \n 3 : l_emittance (with Nx and Nz) \n 4 : l_energy \n 5 : l_rms \n 6 : l_runtime"
+		print "Command not understood, please choose the following: \n 1 : l_charge\n 2 : l_emittance  \n 3 : l_energy \n 3 : l_rms \n 5 : l_runtime"
 		nb = input('Choose a number: ')
 		
 gammaBoost=[2,5,10]
 SENTINEL=float("inf")
 subtext = subtext2 = "self_injection_21dec"
 subtext = subtext2 = "self_injection_4_4part_highest_Nx_8cores"
-#subtext=subtext2 = "external_injection_a0_2"
+#subtext=subtext2 = "external_injection_a0_2_small_beam"
+
+#One of the following must be true
+l_Nx=1
+l_res=0
+
+while (l_res==0 and l_Nx==0):
+	l_res=raw_input("Please re-put a value for l_res : ")
+	l_Nx = raw_input("Please re-put a value for l_Nx : ")
 
 #subtext= "test_t_depos"
 #subtext2="test_t_depos_interpolated"
@@ -91,6 +96,7 @@ if True:
 	maxzrms=0
 	maxuxrms=0
 	maxuzrms=0
+	maxres=0
 	
 	minemitX=SENTINEL
 	minemitZ=SENTINEL
@@ -105,6 +111,7 @@ if True:
 	minuxrms=SENTINEL
 	minuzrms=SENTINEL
 	minNx = SENTINEL
+	minres=SENTINEL
 	for i,igamma in enumerate(gammaBoost):
 		charge=[]
 		emitX=[]
@@ -138,7 +145,7 @@ if True:
 			resolution=[16,24,32,40,48,64,96,128]
 			#resolution=[16]
 		for j, jres in enumerate(resolution):
-		
+			
 			charge.append(data[i]['resolution'][j]['charge'])
 			#charge_jlv.append(data[i]['resolution'][j]['charge_jlv'])
 			emitX.append(data[i]['resolution'][j]['emitX'])
@@ -167,104 +174,130 @@ if True:
 		#winon(0)
 
 		if l_charge:
-			plsys(3)
-
-			plg(charge,res,color=color[i])
-			plp(charge,res,marker='\4',color=color[i])
 			
-			ptitles("Charge (pC/m)","nzplambda")
-			maxcharge = limitmax(maxcharge, max(charge))
-			mincharge = limitmin(mincharge, min(charge))
-			maxres = limitmax(maxres, max(res))
-			minres= limitmin(minres, min(res))
-			limits(0.8*minres,1.1*maxres,0.9*mincharge,1.1*maxcharge)
-			plsys(4)
-			plg(numPart,res,color=color[i])
-			plp(numPart,res,marker='\4',color=color[i])
-			#plg(charge_jlv,res,color=color[i],linetype="dashdot")
-			#plp(charge_jlv,res,marker='\3',color=color[i])
-			ptitles("Number of particles","nzplambda")
-			maxnumPart = limitmax(maxnumPart, max(numPart))
-			minnumPart = limitmin(minnumPart, min(numPart))
-			maxres = limitmax(maxres, max(res))
-			minres= limitmin(minres, min(res))
-			limits(0.8*minres,1.1*maxres,0.9*minnumPart,1.1*maxnumPart)
+			if l_Nx and l_res:
+				plot_ind=3
+				plot_ind2=4
+				plot_ind3=5
+				plot_ind4=6
+				
+			else:
+				plot_ind=9
+				plot_ind2=10
+				plot_ind3=9
+				plot_ind4=10
 
-			plsys(5)
+			if l_res:
+				plsys(plot_ind)
+				plg(charge,res,color=color[i])
+				plp(charge,res,marker='\4',color=color[i])
+				
+				ptitles("Charge (pC/m)","nzplambda")
+				maxcharge = limitmax(maxcharge, max(charge))
+				mincharge = limitmin(mincharge, min(charge))
+				maxres = limitmax(maxres, max(res))
+				minres= limitmin(minres, min(res))
+				limits(0.8*minres,1.1*maxres,0.9*mincharge,1.1*maxcharge)
 
-			plg(charge,Nx,color=color[i])
-			plp(charge,Nx,marker='\4',color=color[i])
-			
-			ptitles("Charge (pC/m)","Nx")
-			maxcharge = limitmax(maxcharge, max(charge))
-			mincharge = limitmin(mincharge, min(charge))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			limits(0.8*minNx,1.1*maxNx,0.9*mincharge,1.1*maxcharge)
+				plsys(plot_ind2)
+				plg(numPart,res,color=color[i])
+				plp(numPart,res,marker='\4',color=color[i])
+				#plg(charge_jlv,res,color=color[i],linetype="dashdot")
+				#plp(charge_jlv,res,marker='\3',color=color[i])
+				ptitles("Number of particles","nzplambda")
+				maxnumPart = limitmax(maxnumPart, max(numPart))
+				minnumPart = limitmin(minnumPart, min(numPart))
+				maxres = limitmax(maxres, max(res))
+				minres= limitmin(minres, min(res))
+				limits(0.8*minres,1.1*maxres,0.9*minnumPart,1.1*maxnumPart)
+					#logxy(0,1)
+			if l_Nx:
+				plsys(plot_ind3)
+				plg(charge,Nx,color=color[i])
+				plp(charge,Nx,marker='\4',color=color[i])
+				
+				ptitles("Charge (pC/m)","Nx")
+				maxcharge = limitmax(maxcharge, max(charge))
+				mincharge = limitmin(mincharge, min(charge))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				limits(0.8*minNx,1.1*maxNx,0.9*mincharge,1.1*maxcharge)
 
-			plsys(6)
-			plg(numPart,Nx,color=color[i])
-			plp(numPart,Nx,marker='\4',color=color[i])
-			#plg(charge_jlv,res,color=color[i],linetype="dashdot")
-			#plp(charge_jlv,res,marker='\3',color=color[i])
-			ptitles("Number of particles","Nx")
-			maxnumPart = limitmax(maxnumPart, max(numPart))
-			minnumPart = limitmin(minnumPart, min(numPart))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			limits(0.8*minNx,1.1*maxNx,0.9*minnumPart,1.1*maxnumPart)
-			#logxy(0,1)
+				plsys(plot_ind4)
+				plg(numPart,Nx,color=color[i])
+				plp(numPart,Nx,marker='\4',color=color[i])
+				#plg(charge_jlv,res,color=color[i],linetype="dashdot")
+				#plp(charge_jlv,res,marker='\3',color=color[i])
+				ptitles("Number of particles","Nx")
+				maxnumPart = limitmax(maxnumPart, max(numPart))
+				minnumPart = limitmin(minnumPart, min(numPart))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				limits(0.8*minNx,1.1*maxNx,0.9*minnumPart,1.1*maxnumPart)
 			pdf("beam_charge_%s" %(subtext2))
 		
 		if l_rms:
-			plsys(3)
-			plg(x_rms,res,color=color[i])
-			plp(x_rms,res,marker='\4',color=color[i])
-			#plg(x_rms_jlv,res,color=color[i],linetype="dashdot")
-			#plp(x_rms_jlv,res,marker='\3',color=color[i])
-			ptitles("x_rms","nzplambda")
-			maxxrms = limitmax(maxxrms, max(x_rms))
-			minxrms = limitmin(minxrms, min(x_rms))
-			maxres = limitmax(maxres, max(res))
-			minres= limitmin(minres, min(res))
-			limits(0.8*minres,1.1*maxres,0.9*minxrms,1.2*maxxrms)
-			
-			plsys(4)
-			plg(ux_rms,res,color=color[i])
-			plp(ux_rms,res,marker='\4',color=color[i])
-			#plg(ux_rms_jlv,res,color=color[i],linetype="dashdot")
-			#plp(ux_rms_jlv,res,marker='\3',color=color[i])
-			ptitles("ux_rms","nzplambda")
-			maxuxrms = limitmax(maxuxrms, max(ux_rms))
-			minuxrms = limitmin(minuxrms, min(ux_rms))
-			maxres = limitmax(maxres, max(res))
-			minres= limitmin(minres, min(res))
-			limits(0.8*minres,1.1*maxres,0.9*minuxrms,1.2*maxuxrms)
-			#limits(min(res)-5,max(res)+5,0.9*minxrms,1.1*maxxrms)
 
-			plsys(5)
-			plg(x_rms,Nx,color=color[i])
-			plp(x_rms,Nx,marker='\4',color=color[i])
-			#plg(x_rms_jlv,res,color=color[i],linetype="dashdot")
-			#plp(x_rms_jlv,res,marker='\3',color=color[i])
-			ptitles("x_rms","Nx")
-			maxxrms = limitmax(maxxrms, max(x_rms))
-			minxrms = limitmin(minxrms, min(x_rms))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			limits(0.8*minNx,1.1*maxNx,0.9*minxrms,1.2*maxxrms)
-			
-			plsys(6)
-			plg(ux_rms,Nx,color=color[i])
-			plp(ux_rms,Nx,marker='\4',color=color[i])
-			#plg(ux_rms_jlv,res,color=color[i],linetype="dashdot")
-			#plp(ux_rms_jlv,res,marker='\3',color=color[i])
-			ptitles("ux_rms","Nx")
-			maxuxrms = limitmax(maxuxrms, max(ux_rms))
-			minuxrms = limitmin(minuxrms, min(ux_rms))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			limits(0.8*minNx,1.1*maxNx,0.9*minuxrms,1.2*maxuxrms)
+			if l_Nx and l_res:
+				plot_ind=3
+				plot_ind2=4
+				plot_ind3=5
+				plot_ind=6
+			else:
+				plot_ind=9
+				plot_ind2=10
+				plot_ind3=9
+				plot_ind4=10
+
+			if l_res:
+				plsys(plot_ind)
+				plg(x_rms,res,color=color[i])
+				plp(x_rms,res,marker='\4',color=color[i])
+				#plg(x_rms_jlv,res,color=color[i],linetype="dashdot")
+				#plp(x_rms_jlv,res,marker='\3',color=color[i])
+				ptitles("x_rms","nzplambda")
+				maxxrms = limitmax(maxxrms, max(x_rms))
+				minxrms = limitmin(minxrms, min(x_rms))
+				maxres = limitmax(maxres, max(res))
+				minres= limitmin(minres, min(res))
+				limits(0.8*minres,1.1*maxres,0.9*minxrms,1.2*maxxrms)
+				
+				plsys(plot_ind2)
+				plg(ux_rms,res,color=color[i])
+				plp(ux_rms,res,marker='\4',color=color[i])
+				#plg(ux_rms_jlv,res,color=color[i],linetype="dashdot")
+				#plp(ux_rms_jlv,res,marker='\3',color=color[i])
+				ptitles("ux_rms","nzplambda")
+				maxuxrms = limitmax(maxuxrms, max(ux_rms))
+				minuxrms = limitmin(minuxrms, min(ux_rms))
+				maxres = limitmax(maxres, max(res))
+				minres= limitmin(minres, min(res))
+				limits(0.8*minres,1.1*maxres,0.9*minuxrms,1.2*maxuxrms)
+			if l_Nx:
+				plsys(plot_ind3)
+				plg(x_rms,Nx,color=color[i])
+				plp(x_rms,Nx,marker='\4',color=color[i])
+				#plg(x_rms_jlv,res,color=color[i],linetype="dashdot")
+				#plp(x_rms_jlv,res,marker='\3',color=color[i])
+				ptitles("x_rms","Nx")
+				maxxrms = limitmax(maxxrms, max(x_rms))
+				minxrms = limitmin(minxrms, min(x_rms))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				limits(0.8*minNx,1.1*maxNx,0.9*minxrms,1.2*maxxrms)
+				
+				plsys(plot_ind4)
+				plg(ux_rms,Nx,color=color[i])
+				plp(ux_rms,Nx,marker='\4',color=color[i])
+				#plg(ux_rms_jlv,res,color=color[i],linetype="dashdot")
+				#plp(ux_rms_jlv,res,marker='\3',color=color[i])
+				ptitles("ux_rms","Nx")
+				maxuxrms = limitmax(maxuxrms, max(ux_rms))
+				minuxrms = limitmin(minuxrms, min(ux_rms))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				limits(0.8*minNx,1.1*maxNx,0.9*minuxrms,1.2*maxuxrms)
+			#limits(min(res)-5,max(res)+5,0.9*minxrms,1.1*maxxrms)
 			
 			if False:
 				plsys(5)
@@ -288,107 +321,136 @@ if True:
 			
 		if l_emittance:
 			
-			plsys(9)
-			plg(emitX,res,color=color[i])
-			plp(emitX,res,marker='\4',color=color[i])
-			maxemitX = limitmax(maxemitX, max(emitX))
-			minemitX = limitmin(minemitX, min(emitX))
+			
+			if l_Nx and l_res:
+				plot_ind=9
+				plot_ind2=10
+				
+			else:
+				plot_ind=1
+				plot_ind2=1
 
-			limits(min(res)-5,max(res)+5,0,1.1*maxemitX)
-			ptitles("Emittance in X","nzplambda","emit X (mm.mrad)")
+			if l_res:
+				plsys(plot_ind)
+				plg(emitX,res,color=color[i])
+				plp(emitX,res,marker='\4',color=color[i])
+				#plg(emitX,res,color=color[i], linetype='dashdot')
+				#plp(emitX,res,marker='\4',color=color[i])
+				maxemitX = limitmax(maxemitX, max(emitX))
+				minemitX = limitmin(minemitX, min(emitX))
 
-			plsys(10)
-			plg(emitX,Nx,color=color[i])
-			plp(emitX,Nx,marker='\4',color=color[i])
-			maxemitX = limitmax(maxemitX, max(emitX))
-			minemitX = limitmin(minemitX, min(emitX))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			limits(0.8*minNx,1.1*maxNx,0,1.1*maxemitX)
-			ptitles("Emittance","Nx","emit X (mm.mrad)" )
+				limits(min(res)-5,max(res)+5,0,1.1*maxemitX)
+				ptitles("Emittance in X","nzplambda","emit X (mm.mrad)")
+
+			if l_Nx:
+				plsys(plot_ind2)
+				plg(emitX,Nx,color=color[i])
+				plp(emitX,Nx,marker='\4',color=color[i])
+				maxemitX = limitmax(maxemitX, max(emitX))
+				minemitX = limitmin(minemitX, min(emitX))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				limits(0.8*minNx,1.1*maxNx,0,1.1*maxemitX)
+				ptitles("Emittance","Nx","emit X (mm.mrad)" )
 
 			pdf("beam_emittance_%s" %(subtext2))
 				
 
-		if l_emittance_Nx_Nz:
-			plsys(9)
-			plg(emitX,Nz,color=color[i])
-			plp(emitX,Nz,marker='\4',color=color[i])
-			ptitles("Emittance","Nz","emit X (mm.mrad)" )
-			plsys(10)
-			plg(emitX,Nx,color=color[i])
-			plp(emitX,Nx,marker='\4',color=color[i])
-			ptitles("Emittance","Nx","emit X (mm.mrad)" )
-			pdf("beam_emittance_2_%s" %(subtext2))
 
 		if l_energy:
 
-			plsys(3)
-			plg(avEnergy,res,color=color[i])
-			plp(avEnergy,res,marker='\4',color=color[i])
-			#plg(avEnergy_jlv,res,color=color[i],linetype="dashdot")
-			#plp(avEnergy_jlv,res,marker='\3',color=color[i])
-			ptitles("Average Energy","nzplambda","Energy (MeV)")
-			maxavEnergy = limitmax(maxavEnergy, max(avEnergy))
-			minavEnergy = limitmin(minavEnergy, min(avEnergy))
-			maxres = limitmax(maxres, max(res))
-			minres= limitmin(minres, min(res))
-			limits(0.8*minres,1.1*maxres,0.9*minavEnergy,1.1*maxavEnergy)
+			if l_Nx and l_res:
+				plot_ind=3
+				plot_ind2=4
+				plot_ind3=5
+				plot_ind4=6
+				
+			else:
+				plot_ind=9
+				plot_ind2=10
+				plot_ind3=9
+				plot_ind4=10
 
-			plsys(4)
-			plg(eSpread,res,color=color[i])
-			plp(eSpread,res,marker='\4',color=color[i])
-			ptitles("Energy spread","nzplambda","deltaE/E ")
-			maxeSpread = limitmax(maxeSpread, max(eSpread))
-			mineSpread = limitmin(mineSpread, min(eSpread))
-			maxres = limitmax(maxres, max(res))
-			minres= limitmin(minres, min(res))
-			limits(0.8*minres,1.1*maxres,0.9*mineSpread,1.1*maxeSpread)
+			if l_res:
+				plsys(plot_ind)
+				plg(avEnergy,res,color=color[i])
+				plp(avEnergy,res,marker='\4',color=color[i])
+				#plg(avEnergy_jlv,res,color=color[i],linetype="dashdot")
+				#plp(avEnergy_jlv,res,marker='\3',color=color[i])
+				ptitles("Average Energy","nzplambda","Energy (MeV)")
+				maxavEnergy = limitmax(maxavEnergy, max(avEnergy))
+				minavEnergy = limitmin(minavEnergy, min(avEnergy))
+				maxres = limitmax(maxres, max(res))
+				minres= limitmin(minres, min(res))
+				limits(0.8*minres,1.1*maxres,0.9*minavEnergy,1.1*maxavEnergy)
 
-			plsys(5)
-			plg(avEnergy,Nx,color=color[i])
-			plp(avEnergy,Nx,marker='\4',color=color[i])
-			#plg(avEnergy_jlv,res,color=color[i],linetype="dashdot")
-			#plp(avEnergy_jlv,res,marker='\3',color=color[i])
-			ptitles("Average Energy","Nx","Energy (MeV)")
-			maxavEnergy = limitmax(maxavEnergy, max(avEnergy))
-			minavEnergy = limitmin(minavEnergy, min(avEnergy))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			limits(0.8*minNx,1.1*maxNx,0.9*minavEnergy,1.1*maxavEnergy)
+				plsys(plot_ind2)
+				plg(eSpread,res,color=color[i])
+				
+				plp(eSpread,res,marker='\4',color=color[i])
+				ptitles("Energy spread","nzplambda","deltaE/E ")
+				maxeSpread = limitmax(maxeSpread, max(eSpread))
+				mineSpread = limitmin(mineSpread, min(eSpread))
+				maxres = limitmax(maxres, max(res))
+				minres= limitmin(minres, min(res))
+				limits(0.8*minres,1.1*maxres,0.9*mineSpread,1.1*maxeSpread)
 
-			plsys(6)
-			plg(eSpread,Nx,color=color[i])
-			plp(eSpread,Nx,marker='\4',color=color[i])
-			ptitles("Energy spread","Nx","deltaE/E ")
-			maxeSpread = limitmax(maxeSpread, max(eSpread))
-			mineSpread = limitmin(mineSpread, min(eSpread))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			limits(0.8*minNx,1.1*maxNx,0.9*mineSpread,1.1*maxeSpread)
+			if l_Nx:
+				plsys(plot_ind3)
+				plg(avEnergy,Nx,color=color[i])
+				plp(avEnergy,Nx,marker='\4',color=color[i])
+				#plg(avEnergy_jlv,res,color=color[i],linetype="dashdot")
+				#plp(avEnergy_jlv,res,marker='\3',color=color[i])
+				ptitles("Average Energy","Nx","Energy (MeV)")
+				maxavEnergy = limitmax(maxavEnergy, max(avEnergy))
+				minavEnergy = limitmin(minavEnergy, min(avEnergy))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				limits(0.8*minNx,1.1*maxNx,0.9*minavEnergy,1.1*maxavEnergy)
+
+				plsys(plot_ind4)
+				plg(eSpread,Nx,color=color[i])
+				plp(eSpread,Nx,marker='\4',color=color[i])
+				ptitles("Energy spread","Nx","deltaE/E ")
+				maxeSpread = limitmax(maxeSpread, max(eSpread))
+				mineSpread = limitmin(mineSpread, min(eSpread))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				limits(0.8*minNx,1.1*maxNx,0.9*mineSpread,1.1*maxeSpread)
+
 			pdf("beam_energy_%s"%(subtext2))
 			
 		if l_runtime:
-			plsys(9)
-			plg(runTime,res,color=color[i])
-			plp(runTime,res,marker='\4',color=color[i])
-			ptitles("Run Time","nzplambda","time (s)")
-			maxrunTime = limitmax(maxrunTime, max(runTime))
-			minrunTime = limitmin(minrunTime, min(runTime))
-			maxres = limitmax(maxres, max(res))
-			minres= limitmin(minres, min(res))
-			logxy(0,1)
-			limits(0.8*minres,1.1*maxres,0.9*minrunTime,1.1*maxrunTime)
 
-			plsys(10)
-			plg(runTime,Nx,color=color[i])
-			plp(runTime,Nx,marker='\4',color=color[i])
-			ptitles("Run Time","Nx","time (s)")
-			maxrunTime = limitmax(maxrunTime, max(runTime))
-			minrunTime = limitmin(minrunTime, min(runTime))
-			maxNx = limitmax(maxNx, max(Nx))
-			minNx = limitmin(minNx, min(Nx))
-			logxy(0,1)
-			limits(0.8*minNx,1.1*maxNx,0.9*minrunTime,1.1*maxrunTime)
+			if l_Nx and l_res:
+				plot_ind=9
+				plot_ind2=10
+				
+			else:
+				plot_ind=1
+				plot_ind2=1
+
+			if l_res:
+				plsys(plot_ind)
+				plg(runTime,res,color=color[i])
+				plp(runTime,res,marker='\4',color=color[i])
+				ptitles("Run Time","nzplambda","time (s)")
+				maxrunTime = limitmax(maxrunTime, max(runTime))
+				minrunTime = limitmin(minrunTime, min(runTime))
+				maxres = limitmax(maxres, max(res))
+				minres= limitmin(minres, min(res))
+				logxy(0,1)
+				limits(0.8*minres,1.1*maxres,0.9*minrunTime,1.1*maxrunTime)
+			if l_Nx:
+				plsys(plot_ind2)
+				plg(runTime,Nx,color=color[i])
+				plp(runTime,Nx,marker='\4',color=color[i])
+				ptitles("Run Time","Nx","time (s)")
+				maxrunTime = limitmax(maxrunTime, max(runTime))
+				minrunTime = limitmin(minrunTime, min(runTime))
+				maxNx = limitmax(maxNx, max(Nx))
+				minNx = limitmin(minNx, min(Nx))
+				logxy(0,1)
+				limits(0.8*minNx,1.1*maxNx,0.9*minrunTime,1.1*maxrunTime)
 
 			pdf("overall_time_%s"%(subtext2))

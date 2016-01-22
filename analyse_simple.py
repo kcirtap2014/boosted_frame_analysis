@@ -562,7 +562,7 @@ def gamma2energy(gamma_beam):
 def beam_charge(z_beam,w_beam):
 		"""calculate the charge in the ROI (region of interest)"""
 		try:
-			charge=sum(w_beam)*echarge*10**12
+			charge=sum(w_beam)*echarge*1e9  #charge in nC
 			#ave_charge=average(charge)
 		except TypeError:
 			charge=0.
@@ -716,6 +716,8 @@ def beam_variables(F,P,gamma_threshold=[], bucket=False):
 			buckets=[buckets[0][1],max(F.zValues())]
 		if bucket ==2:
 			buckets = buckets[0]
+		if bucket ==3:
+			buckets=[min(F.zValues()), buckets[0][0]]
 	else:	
 		buckets=[]
 	
@@ -726,7 +728,10 @@ def beam_variables(F,P,gamma_threshold=[], bucket=False):
 	gamma_beam = P.getfilteredgamma(index)
 	ux_beam = P.getfiltereduxbeam(index)
 	uz_beam = P.getfiltereduzbeam(index)
-	t_beam  = P.gettbeam(index)
+	try:
+		t_beam  = P.gettbeam(index)
+	except IndexError:
+		t_beam =0.0
 	
 	return x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam
 	
@@ -744,13 +749,16 @@ def add(t, path):
     
 def myPlot(pdf =0):
 	plsys(3)
+	
+	ppg(ux_beam3/clight, x_beam3, color="black",msize=10)
 	ppg(ux_beam/clight, x_beam,color="red",msize=10)
 	ppg(ux_beam2/clight, x_beam2, color="blue",msize=10)
-	
 	ptitles("Diff En","x[m]","ux[m]")
 	limits(min(x),max(x), min(ux_beam3/clight)-0.1*min(ux_beam3/clight), max(ux_beam3/clight)+0.1*max(ux_beam3/clight))
 
 	plsys(4)
+	
+	ppg(uz_beam3/clight, z_beam3, color="black",msize=10)
 	ppg(uz_beam/clight, z_beam, color="red",msize=10)
 	ppg(uz_beam2/clight, z_beam2, color="blue",msize=10)
 	ptitles("Diff En","z[m]","uz[m]")
@@ -806,7 +814,7 @@ except OSError:
 analysis = tree()
 file_analysis  = path+"/analysis_res.txt"
 
-file_variation = "self_injection_100_particles_highest_Nx"
+file_variation = "self_injection_4_4part_highest_Nx_8cores"
 fileselection = range(1, 11)
 a_fileselection = [range(1,6), range(1,11), range(1,21)]
 file_json = path+ "json/analysis_%s.json" %file_variation
@@ -819,11 +827,11 @@ dsets = None
 timeSeries=None
 instant = 0
 ins_particle   = 0
-gammaBoost = 10
-resolution=96
+gammaBoost = 2
+resolution=64
 subtext = ""
 folder=path+"gamma_test/gamma%d_%s/gamma%d_nzplambda%d%s/" %(gammaBoost,file_variation, gammaBoost,resolution,subtext)
-species = 'beam'
+species = 'electron'
 file_ebeam = folder+"ebeamstations.pdb"
 filePresent= os.path.isfile(file_ebeam)
 filePresent=0
@@ -857,7 +865,8 @@ z = F.zValues()
 x = F.xValues()
 #1st beam
 # -- calculating DESY quantities
-x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[30./0.511],2)	
+x_beam, z_beam, ux_beam, uz_beam, gamma_beam, w_beam, t_beam = beam_variables(F,P,[50./0.511],)
+
 vx_beam = u2v(ux_beam,gamma_beam)
 vz_beam = u2v(uz_beam,gamma_beam)
 
